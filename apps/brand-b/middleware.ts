@@ -24,7 +24,15 @@ export async function middleware(request: NextRequest) {
 
   try {
     const refreshed = await refreshAccessToken(oauthConfig, session.tokens.refreshToken);
-    const token = await encryptSession({ ...session, tokens: refreshed }, SESSION_SECRET);
+    // Shopify's refresh_token grant doesn't return a new id_token, and may not return a
+    // new refresh_token either if it isn't rotating — fall back to the prior session's
+    // values so logout's id_token_hint and future refreshes keep working.
+    const tokens = {
+      ...refreshed,
+      idToken: refreshed.idToken || session.tokens.idToken,
+      refreshToken: refreshed.refreshToken || session.tokens.refreshToken,
+    };
+    const token = await encryptSession({ ...session, tokens }, SESSION_SECRET);
     const res = NextResponse.next();
     res.cookies.set(SESSION_COOKIE_NAME, token, {
       httpOnly: true,

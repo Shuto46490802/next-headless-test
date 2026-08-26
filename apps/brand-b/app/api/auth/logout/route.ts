@@ -7,7 +7,10 @@ export async function POST(request: NextRequest) {
   const session = await getSession();
   await clearSessionCookie();
 
-  if (!session) {
+  if (!session || !session.tokens.idToken) {
+    // No id_token to hand Shopify (e.g. a stale pre-fix session) — our own cookie is
+    // already cleared above, so just send them home instead of building a broken
+    // logout URL with id_token_hint=undefined.
     return NextResponse.redirect(new URL("/", request.nextUrl.origin), 303);
   }
 
