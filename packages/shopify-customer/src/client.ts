@@ -1,5 +1,6 @@
 export interface CustomerAccountConfig {
-  storeDomain: string;
+  /** The numeric shop id, e.g. "57094340656" (found in the authorize/token/logout endpoint URLs). */
+  shopId: string;
   apiVersion: string;
 }
 
@@ -14,7 +15,7 @@ export class CustomerAccountApiError extends Error {
 }
 
 export function createCustomerAccountClient(config: CustomerAccountConfig) {
-  const endpoint = `https://${config.storeDomain}/customer/api/${config.apiVersion}/graphql`;
+  const endpoint = `https://shopify.com/${config.shopId}/account/customer/api/${config.apiVersion}/graphql`;
 
   async function request<TData, TVariables extends Record<string, unknown> = Record<string, unknown>>(
     accessToken: string,
