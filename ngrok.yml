@@ -1,0 +1,11 @@
+version: "3"
+tunnels:
+  brand-a:
+    proto: http
+    addr: 3001
+  brand-b:
+    proto: http
+    addr: 3002
+  brand-c:
+    proto: http
+    addr: 3003
