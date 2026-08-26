@@ -41,12 +41,6 @@ export async function addToCart(merchandiseId: string, quantity = 1): Promise<Ca
   return addLines([{ merchandiseId, quantity }]);
 }
 
-export async function addManyToCart(
-  lines: { merchandiseId: string; quantity: number }[],
-): Promise<Cart> {
-  return addLines(lines);
-}
-
 export async function updateCartLine(lineId: string, quantity: number): Promise<Cart | null> {
   const store = await cookies();
   const cartId = store.get(CART_COOKIE)?.value;

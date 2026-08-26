@@ -9,17 +9,17 @@ export interface OrderLineItemData {
   id: string;
   name: string;
   quantity: number;
-  variantId: string | null;
+  productId: string | null;
   price: { amount: string; currencyCode: string } | null;
   image: { url: string; altText: string | null } | null;
 }
 
 export interface OrderLineItemsProps {
   lineItems: OrderLineItemData[];
-  onBuyAgain: (variantIds: string[]) => Promise<void>;
+  onAddToFavourites: (productIds: string[]) => Promise<void>;
 }
 
-export function OrderLineItems({ lineItems, onBuyAgain }: OrderLineItemsProps) {
+export function OrderLineItems({ lineItems, onAddToFavourites }: OrderLineItemsProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -33,15 +33,15 @@ export function OrderLineItems({ lineItems, onBuyAgain }: OrderLineItemsProps) {
     });
   }
 
-  function buyAgain() {
-    const variantIds = lineItems
-      .filter((item) => selected.has(item.id) && item.variantId)
-      .map((item) => item.variantId as string);
-    if (variantIds.length === 0) return;
+  function addToFavourites() {
+    const productIds = lineItems
+      .filter((item) => selected.has(item.id) && item.productId)
+      .map((item) => item.productId as string);
+    if (productIds.length === 0) return;
 
     startTransition(async () => {
-      await onBuyAgain(variantIds);
-      setFeedback("Added to cart.");
+      await onAddToFavourites(productIds);
+      setFeedback("Added to favorites.");
       setSelected(new Set());
     });
   }
@@ -58,7 +58,7 @@ export function OrderLineItems({ lineItems, onBuyAgain }: OrderLineItemsProps) {
               type="checkbox"
               checked={selected.has(item.id)}
               onChange={() => toggle(item.id)}
-              disabled={!item.variantId}
+              disabled={!item.productId}
               className="h-4 w-4 rounded border-neutral-300"
             />
             <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-100">
@@ -89,9 +89,9 @@ export function OrderLineItems({ lineItems, onBuyAgain }: OrderLineItemsProps) {
           type="button"
           variant="secondary"
           disabled={selected.size === 0 || isPending}
-          onClick={buyAgain}
+          onClick={addToFavourites}
         >
-          {isPending ? "Adding…" : `Buy it again (${selected.size})`}
+          {isPending ? "Adding…" : `Add to favorites (${selected.size})`}
         </Button>
         {feedback ? <span className="text-sm text-neutral-500">{feedback}</span> : null}
       </div>

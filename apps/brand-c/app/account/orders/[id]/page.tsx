@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { OrderLineItems, formatMoney, formatDate } from "@repo/ui";
 import { getValidAccessToken, requireSession } from "../../../../lib/session";
-import { customerAccount } from "../../../../lib/shopify";
-import { addManyToCart } from "../../../../lib/cart";
+import { customerAccount, customerData } from "../../../../lib/shopify";
 
 export default async function OrderDetailPage({
   params,
@@ -19,10 +18,13 @@ export default async function OrderDetailPage({
   const order = await customerAccount.getOrder(accessToken, id);
   if (!order) notFound();
 
-  async function buyAgain(variantIds: string[]) {
+  async function addToFavourites(productIds: string[]) {
     "use server";
-    await addManyToCart(variantIds.map((variantId) => ({ merchandiseId: variantId, quantity: 1 })));
-    revalidatePath("/cart");
+    const session = await requireSession();
+    const current = await customerData.getFavourites(session.customerId);
+    const next = Array.from(new Set([...current, ...productIds]));
+    await customerData.setFavourites(session.customerId, next);
+    revalidatePath("/account/favorites");
   }
 
   return (
@@ -34,7 +36,7 @@ export default async function OrderDetailPage({
         </p>
       </div>
 
-      <OrderLineItems lineItems={order.lineItems} onBuyAgain={buyAgain} />
+      <OrderLineItems lineItems={order.lineItems} onAddToFavourites={addToFavourites} />
 
       <div className="flex flex-col gap-2 self-end text-sm">
         {order.subtotal ? (
