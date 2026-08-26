@@ -7,13 +7,16 @@ import { getFavouriteIds } from "../lib/favorites";
 export default async function HomePage() {
   const collections = await storefront.listCollections(1).catch(() => []);
   const featuredCollection = collections[0]
-    ? await storefront.getCollection(collections[0].handle, { first: 8 })
+    ? await storefront.getCollection(collections[0].handle, { first: 8 }).catch(() => null)
     : null;
 
   const featuredTitle = featuredCollection ? featuredCollection.title : "Shop the collection";
   const featuredProducts = featuredCollection
     ? featuredCollection.products.items
-    : (await storefront.listProducts({ first: 8 })).items;
+    : await storefront
+        .listProducts({ first: 8 })
+        .then((r) => r.items)
+        .catch(() => []);
 
   const [session, favouriteIds] = await Promise.all([getSession(), getFavouriteIds()]);
 
