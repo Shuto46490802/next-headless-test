@@ -1,13 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import {
-  SESSION_COOKIE_NAME,
-  decryptSession,
-  encryptSession,
-  refreshAccessToken,
-  type SessionPayload,
-} from "@repo/shopify-customer";
-import { oauthConfig } from "./shopify";
+import { SESSION_COOKIE_NAME, decryptSession, encryptSession, type SessionPayload } from "@repo/shopify-customer";
 
 const SESSION_SECRET = process.env.SESSION_SECRET as string;
 
@@ -35,15 +28,13 @@ export async function clearSessionCookie() {
   store.delete(SESSION_COOKIE_NAME);
 }
 
-/** Returns a valid access token, transparently refreshing (and re-persisting) it if needed. */
+/**
+ * Returns the session's access token. Token refresh happens in middleware.ts (the only
+ * place allowed to write cookies ahead of a page render) — by the time a Server Component
+ * reads the session, its access token is already fresh.
+ */
 export async function getValidAccessToken(session: SessionPayload): Promise<string> {
-  const isExpiringSoon = session.tokens.expiresAt - Date.now() < 60_000;
-  if (!isExpiringSoon) return session.tokens.accessToken;
-  if (!session.tokens.refreshToken) return session.tokens.accessToken;
-
-  const refreshed = await refreshAccessToken(oauthConfig, session.tokens.refreshToken);
-  await setSessionCookie({ ...session, tokens: refreshed });
-  return refreshed.accessToken;
+  return session.tokens.accessToken;
 }
 
 export async function requireSession(): Promise<SessionPayload> {
