@@ -9,7 +9,9 @@ import {
   ORDER_DETAIL_QUERY,
   ORDERS_QUERY,
 } from "./queries";
-import type { Address, CustomerProfile, OrderDetail, OrderSummary } from "./types";
+import type { Address, CustomerProfile, OrderDetail, OrderLineItem, OrderSummary } from "./types";
+
+type RawOrderDetail = Omit<OrderDetail, "lineItems"> & { lineItems: { nodes: OrderLineItem[] } };
 
 export * from "./types";
 export * from "./oauth";
@@ -120,12 +122,14 @@ export function createShopifyCustomerAccount(config: CustomerAccountConfig) {
     },
 
     async getOrder(accessToken: string, id: string): Promise<OrderDetail | null> {
-      const data = await client.request<{ order: OrderDetail | null }>(
+      const data = await client.request<{ order: RawOrderDetail | null }>(
         accessToken,
         ORDER_DETAIL_QUERY,
         { id },
       );
-      return data.order;
+      if (!data.order) return null;
+      const { lineItems, ...rest } = data.order;
+      return { ...rest, lineItems: lineItems.nodes };
     },
   };
 }
