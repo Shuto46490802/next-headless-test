@@ -9,13 +9,15 @@ export interface CustomerAccountOAuthConfig {
 
 export const CUSTOMER_ACCOUNT_SCOPE = "openid email customer-account-api:full";
 
-/** Pulls the numeric shop id out of an authorize/token/logout endpoint URL, e.g. ".../authentication/57094340656/oauth/token" -> "57094340656". */
-export function extractShopId(endpointUrl: string): string {
-  const shopId = endpointUrl.match(/\/authentication\/(\d+)\//)?.[1];
-  if (!shopId) {
-    throw new Error(`Could not extract shop id from endpoint URL: ${endpointUrl}`);
-  }
-  return shopId;
+/**
+ * Pulls the numeric shop id out of an authorize/token/logout endpoint URL, e.g.
+ * ".../authentication/57094340656/oauth/token" -> "57094340656". Never throws (safe to
+ * call at module load, e.g. before env vars are guaranteed to be populated during a build
+ * step) — returns an empty string on anything unparseable, which just produces a
+ * request that fails at actual call time instead of crashing at import time.
+ */
+export function extractShopId(endpointUrl: string | undefined): string {
+  return endpointUrl?.match(/\/authentication\/(\d+)\//)?.[1] ?? "";
 }
 
 export interface AuthorizeUrlParams {
