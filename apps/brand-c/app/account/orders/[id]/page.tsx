@@ -10,7 +10,10 @@ export default async function OrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  // Next.js doesn't decode %2F/%3A within a dynamic segment back to "/"/":", so the
+  // order GID (e.g. gid://shopify/Order/123) arrives still percent-encoded — decode it.
+  const { id: rawId } = await params;
+  const id = decodeURIComponent(rawId);
   const session = await requireSession();
   const accessToken = await getValidAccessToken(session);
   const order = await customerAccount.getOrder(accessToken, id);
