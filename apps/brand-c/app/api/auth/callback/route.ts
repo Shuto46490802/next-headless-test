@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { decodeIdToken, exchangeCodeForToken } from "@repo/shopify-customer";
 import { BRAND_SLUG, customerAccount, customerData, oauthConfig } from "../../../../lib/shopify";
 import { setSessionCookie } from "../../../../lib/session";
+import { safeReturnTo } from "../../../../lib/safe-return-to";
 
 function clearOauthCookies(res: NextResponse) {
   for (const name of [
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
   const expectedState = request.cookies.get("shuto_oauth_state")?.value;
   const expectedNonce = request.cookies.get("shuto_oauth_nonce")?.value;
   const codeVerifier = request.cookies.get("shuto_oauth_verifier")?.value;
-  const returnTo = request.cookies.get("shuto_oauth_return_to")?.value ?? "/account";
+  const returnTo = safeReturnTo(request.cookies.get("shuto_oauth_return_to")?.value, "/account");
 
   if (error || !code || !state || !codeVerifier || state !== expectedState) {
     return clearOauthCookies(

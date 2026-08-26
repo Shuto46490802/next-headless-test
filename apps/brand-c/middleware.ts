@@ -11,10 +11,13 @@ const SESSION_SECRET = process.env.SESSION_SECRET as string;
 
 export async function middleware(request: NextRequest) {
   const raw = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-  if (!raw) return NextResponse.next();
+  const session = raw ? await decryptSession(raw, SESSION_SECRET) : null;
 
-  const session = await decryptSession(raw, SESSION_SECRET);
-  if (!session) return NextResponse.next();
+  if (!session) {
+    const gateUrl = new URL("/gate", request.nextUrl.origin);
+    gateUrl.searchParams.set("returnTo", request.nextUrl.pathname + request.nextUrl.search);
+    return NextResponse.redirect(gateUrl);
+  }
 
   const isExpiringSoon = session.tokens.expiresAt - Date.now() < 60_000;
   if (!isExpiringSoon || !session.tokens.refreshToken) return NextResponse.next();
@@ -40,5 +43,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/account/:path*"],
+  // Everything requires a session except: the gate/access-denied pages themselves
+  // (or this would redirect-loop), all /api routes (they do their own auth checks and
+  // must return JSON/redirects to Shopify, not an HTML gate page), and Next internals.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api|gate|access-denied).*)"],
 };

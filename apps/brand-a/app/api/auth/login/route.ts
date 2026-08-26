@@ -7,6 +7,7 @@ import {
   generateState,
 } from "@repo/shopify-customer";
 import { oauthConfig } from "../../../../lib/shopify";
+import { safeReturnTo } from "../../../../lib/safe-return-to";
 
 const PKCE_COOKIE_OPTS = {
   httpOnly: true,
@@ -17,7 +18,7 @@ const PKCE_COOKIE_OPTS = {
 };
 
 export async function GET(request: NextRequest) {
-  const returnTo = request.nextUrl.searchParams.get("returnTo") ?? "/account";
+  const returnTo = safeReturnTo(request.nextUrl.searchParams.get("returnTo"), "/account");
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await generateCodeChallenge(codeVerifier);
   const state = generateState();
