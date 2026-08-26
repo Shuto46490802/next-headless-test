@@ -32,12 +32,17 @@ export function Header({ brand, isLoggedIn, cartQuantity, collections }: HeaderP
         </nav>
 
         <div className="flex items-center gap-4">
-          <Link
-            href={isLoggedIn ? "/account" : "/api/auth/login"}
-            className="text-sm font-medium text-neutral-700 hover:text-neutral-900"
-          >
-            {isLoggedIn ? "Account" : "Sign in"}
-          </Link>
+          {isLoggedIn ? (
+            <Link href="/account" className="text-sm font-medium text-neutral-700 hover:text-neutral-900">
+              Account
+            </Link>
+          ) : (
+            // Plain <a>, not <Link>: this route redirects to Shopify's hosted login, and
+            // Link's client-side fetch navigation would hit that redirect as a CORS request.
+            <a href="/api/auth/login" className="text-sm font-medium text-neutral-700 hover:text-neutral-900">
+              Sign in
+            </a>
+          )}
           <Link href="/cart" className="relative text-sm font-medium text-neutral-700 hover:text-neutral-900">
             Cart
             {cartQuantity > 0 ? (
