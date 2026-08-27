@@ -57,15 +57,24 @@ export async function GET(request: NextRequest) {
       // the shopify.com SSO session clears too. Otherwise a retry with the right account
       // would silently reuse this wrong one, forcing the customer to go log out from
       // whichever brand it *does* belong to before they could try again here.
-      const postLogoutRedirectUri = new URL(
-        "/access-denied?reason=wrong_brand",
-        request.nextUrl.origin,
-      ).toString();
+      //
+      // post_logout_redirect_uri must exactly match a registered Logout URI — which is
+      // registered as the bare origin, not /access-denied — so carry the reason through a
+      // short-lived cookie instead of a query string; middleware reads it once we're back.
+      const postLogoutRedirectUri = new URL("/", request.nextUrl.origin).toString();
       const logoutUrl = buildLogoutUrl(oauthConfig, {
         idToken: tokens.idToken,
         postLogoutRedirectUri,
       });
-      return clearOauthCookies(NextResponse.redirect(logoutUrl));
+      const res = NextResponse.redirect(logoutUrl);
+      res.cookies.set("shuto_post_logout_reason", "wrong_brand", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 300,
+      });
+      return clearOauthCookies(res);
     }
     if (!existingBrand) {
       await customerData.setBrand(customerId, BRAND_SLUG);
