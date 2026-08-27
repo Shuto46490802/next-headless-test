@@ -14,19 +14,6 @@ export async function middleware(request: NextRequest) {
   const session = raw ? await decryptSession(raw, SESSION_SECRET) : null;
 
   if (!session) {
-    // The OAuth callback sets this right before bouncing through Shopify's logout
-    // endpoint to reject a wrong-brand login — post_logout_redirect_uri has to be the
-    // bare registered origin, so the actual reason travels via cookie instead of a
-    // query string and gets picked up here once Shopify redirects back to it.
-    const postLogoutReason = request.cookies.get("shuto_post_logout_reason")?.value;
-    if (postLogoutReason) {
-      const res = NextResponse.redirect(
-        new URL(`/access-denied?reason=${postLogoutReason}`, request.nextUrl.origin),
-      );
-      res.cookies.delete("shuto_post_logout_reason");
-      return res;
-    }
-
     const gateUrl = new URL("/gate", request.nextUrl.origin);
     gateUrl.searchParams.set("returnTo", request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(gateUrl);

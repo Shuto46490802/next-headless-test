@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildLogoutUrl, decodeIdToken, exchangeCodeForToken } from "@repo/shopify-customer";
+import { decodeIdToken, exchangeCodeForToken } from "@repo/shopify-customer";
 import { BRAND_SLUG, customerAccount, customerData, oauthConfig } from "../../../../lib/shopify";
 import { setSessionCookie } from "../../../../lib/session";
 import { safeReturnTo } from "../../../../lib/safe-return-to";
@@ -52,22 +52,16 @@ export async function GET(request: NextRequest) {
 
     const existingBrand = await customerData.getBrand(customerId);
     if (existingBrand && existingBrand !== BRAND_SLUG) {
-      // Route the rejection through Shopify's own logout endpoint (using the id_token we
-      // just got from the exchange, even though we're refusing to keep this session) so
-      // the shopify.com SSO session clears too. Otherwise a retry with the right account
-      // would silently reuse this wrong one, forcing the customer to go log out from
-      // whichever brand it *does* belong to before they could try again here.
-      //
-      // post_logout_redirect_uri must exactly match a registered Logout URI — which is
-      // registered as the bare origin, not /access-denied — so carry the reason through a
-      // short-lived cookie instead of a query string; middleware reads it once we're back.
-      const postLogoutRedirectUri = new URL("/", request.nextUrl.origin).toString();
-      const logoutUrl = buildLogoutUrl(oauthConfig, {
-        idToken: tokens.idToken,
-        postLogoutRedirectUri,
-      });
-      const res = NextResponse.redirect(logoutUrl);
-      res.cookies.set("shuto_post_logout_reason", "wrong_brand", {
+      // Don't auto-trigger a Shopify logout here: RP-Initiated Logout terminates the
+      // session for the whole identity, not just this brand — it would silently kill an
+      // already-valid, currently-in-use session on whichever brand this account actually
+      // belongs to. Instead, stash the id_token and let the customer opt into that
+      // themselves from the access-denied page ("sign out and try again"), via
+      // /api/auth/logout-pending.
+      const res = NextResponse.redirect(
+        new URL("/access-denied?reason=wrong_brand", request.nextUrl.origin),
+      );
+      res.cookies.set("shuto_pending_logout_id_token", tokens.idToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
