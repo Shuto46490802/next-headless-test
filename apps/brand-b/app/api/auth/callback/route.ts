@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decodeIdToken, exchangeCodeForToken } from "@repo/shopify-customer";
+import { buildLogoutUrl, decodeIdToken, exchangeCodeForToken } from "@repo/shopify-customer";
 import { BRAND_SLUG, customerAccount, customerData, oauthConfig } from "../../../../lib/shopify";
 import { setSessionCookie } from "../../../../lib/session";
 import { safeReturnTo } from "../../../../lib/safe-return-to";
@@ -52,11 +52,20 @@ export async function GET(request: NextRequest) {
 
     const existingBrand = await customerData.getBrand(customerId);
     if (existingBrand && existingBrand !== BRAND_SLUG) {
-      return clearOauthCookies(
-        NextResponse.redirect(
-          new URL("/access-denied?reason=wrong_brand", request.nextUrl.origin),
-        ),
-      );
+      // Route the rejection through Shopify's own logout endpoint (using the id_token we
+      // just got from the exchange, even though we're refusing to keep this session) so
+      // the shopify.com SSO session clears too. Otherwise a retry with the right account
+      // would silently reuse this wrong one, forcing the customer to go log out from
+      // whichever brand it *does* belong to before they could try again here.
+      const postLogoutRedirectUri = new URL(
+        "/access-denied?reason=wrong_brand",
+        request.nextUrl.origin,
+      ).toString();
+      const logoutUrl = buildLogoutUrl(oauthConfig, {
+        idToken: tokens.idToken,
+        postLogoutRedirectUri,
+      });
+      return clearOauthCookies(NextResponse.redirect(logoutUrl));
     }
     if (!existingBrand) {
       await customerData.setBrand(customerId, BRAND_SLUG);
