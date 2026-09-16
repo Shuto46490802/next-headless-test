@@ -122,7 +122,6 @@ export const COLLECTION_QUERY = /* GraphQL */ `
     }
   }
   ${PRODUCT_SUMMARY_FRAGMENT}
-  ${IMAGE_FRAGMENT}
 `;
 
 export const COLLECTIONS_QUERY = /* GraphQL */ `

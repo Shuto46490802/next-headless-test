@@ -36,7 +36,7 @@ export function createStorefrontClient(config: StorefrontConfig) {
 
     if (!res.ok || json.errors) {
       throw new StorefrontApiError(
-        `Storefront API request failed (${res.status})`,
+        `Storefront API request failed (${res.status}): ${JSON.stringify(json.errors)}`,
         json.errors,
       );
     }
