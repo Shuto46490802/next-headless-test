@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { revalidatePath } from "next/cache";
-import { AddToCartForm, FavoriteButton } from "@repo/ui";
+import { AddToCartForm, FavoriteButton, type AddToCartResult } from "@repo/ui";
+import { CartMutationError } from "@repo/shopify-storefront";
 import { storefront } from "../../../lib/shopify";
 import { addToCart } from "../../../lib/cart";
 import { getSession } from "../../../lib/session";
@@ -18,10 +19,20 @@ export default async function ProductPage({
 
   const [session, favouriteIds] = await Promise.all([getSession(), getFavouriteIds()]);
 
-  async function addProductToCart(variantId: string, quantity: number) {
+  async function addProductToCart(variantId: string, quantity: number): Promise<AddToCartResult> {
     "use server";
-    await addToCart(variantId, quantity);
+    try {
+      await addToCart(variantId, quantity);
+    } catch (err) {
+      // Validation function rejections (e.g. no liquor licence) arrive as CartMutationError
+      // carrying the function's message; anything else gets a generic fallback.
+      return {
+        ok: false,
+        message: err instanceof CartMutationError ? err.message : "Couldn't add to cart. Please try again.",
+      };
+    }
     revalidatePath("/cart");
+    return { ok: true };
   }
 
   return (

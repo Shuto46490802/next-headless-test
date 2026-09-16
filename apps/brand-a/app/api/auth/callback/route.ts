@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { decodeIdToken, exchangeCodeForToken } from "@repo/shopify-customer";
 import { SITE_MEMBERSHIP, customerAccount, customerData, oauthConfig } from "../../../../lib/shopify";
 import { setSessionCookie } from "../../../../lib/session";
+import { CART_COOKIE, attachCustomerToCart } from "../../../../lib/cart";
 import { safeReturnTo } from "../../../../lib/safe-return-to";
 
 function clearOauthCookies(res: NextResponse) {
@@ -80,6 +81,11 @@ export async function GET(request: NextRequest) {
       email: profile.emailAddress?.emailAddress ?? null,
       tokens,
     });
+
+    // Tie any cart started while logged out to this customer, so validation functions and
+    // checkout see the buyer identity.
+    const cartId = request.cookies.get(CART_COOKIE)?.value;
+    if (cartId) await attachCustomerToCart(cartId, tokens.accessToken);
 
     return clearOauthCookies(NextResponse.redirect(new URL(returnTo, request.nextUrl.origin)));
   } catch (err) {

@@ -63,10 +63,17 @@ export interface CartLine {
   };
 }
 
+export interface CartBuyerIdentityInput {
+  /** Customer Account API access token (or legacy Storefront customerAccessToken). */
+  customerAccessToken?: string;
+  email?: string;
+}
+
 export interface Cart {
   id: string;
   checkoutUrl: string;
   totalQuantity: number;
+  buyerIdentity: { customer: { id: string } | null };
   cost: {
     subtotalAmount: Money;
     totalAmount: Money;

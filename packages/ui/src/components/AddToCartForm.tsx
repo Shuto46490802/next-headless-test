@@ -11,10 +11,13 @@ export interface AddToCartVariant {
   selectedOptions: { name: string; value: string }[];
 }
 
+export type AddToCartResult = { ok: true } | { ok: false; message: string };
+
 export interface AddToCartFormProps {
   options: { name: string; values: string[] }[];
   variants: AddToCartVariant[];
-  onAddToCart: (variantId: string, quantity: number) => Promise<void>;
+  /** Return `{ ok: false, message }` to show a rejection (e.g. a cart validation rule) under the button. */
+  onAddToCart: (variantId: string, quantity: number) => Promise<AddToCartResult | void>;
 }
 
 export function AddToCartForm({ options, variants, onAddToCart }: AddToCartFormProps) {
@@ -26,6 +29,7 @@ export function AddToCartForm({ options, variants, onAddToCart }: AddToCartFormP
   const [quantity, setQuantity] = useState(1);
   const [isPending, startTransition] = useTransition();
   const [added, setAdded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const matchedVariant = useMemo(
     () =>
@@ -38,8 +42,13 @@ export function AddToCartForm({ options, variants, onAddToCart }: AddToCartFormP
   function addToCart() {
     if (!matchedVariant) return;
     setAdded(false);
+    setError(null);
     startTransition(async () => {
-      await onAddToCart(matchedVariant.id, quantity);
+      const result = await onAddToCart(matchedVariant.id, quantity);
+      if (result && !result.ok) {
+        setError(result.message);
+        return;
+      }
       setAdded(true);
     });
   }
@@ -104,6 +113,12 @@ export function AddToCartForm({ options, variants, onAddToCart }: AddToCartFormP
                 : "Add to cart"}
         </Button>
       </div>
+
+      {error ? (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

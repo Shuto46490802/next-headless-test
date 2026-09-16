@@ -1,5 +1,6 @@
 import { createStorefrontClient, type StorefrontConfig } from "./client";
 import {
+  CART_BUYER_IDENTITY_UPDATE_MUTATION,
   CART_CREATE_MUTATION,
   CART_LINES_ADD_MUTATION,
   CART_LINES_REMOVE_MUTATION,
@@ -13,6 +14,7 @@ import {
 } from "./queries";
 import type {
   Cart,
+  CartBuyerIdentityInput,
   CollectionSummary,
   CollectionWithProducts,
   ProductDetail,
@@ -41,6 +43,34 @@ type RawCart = Omit<Cart, "lines"> & { lines: { nodes: Cart["lines"] } };
 function mapCart(raw: RawCart): Cart {
   const { lines, ...rest } = raw;
   return { ...rest, lines: lines.nodes };
+}
+
+export interface CartUserError {
+  field: string[] | null;
+  message: string;
+}
+
+/**
+ * A cart mutation completed (HTTP 200) but Shopify rejected it via `userErrors`. This is how
+ * Cart & Checkout Validation function rejections (code VALIDATION_CUSTOM) reach a headless
+ * storefront — `message` carries the function's localizedMessage.
+ */
+export class CartMutationError extends Error {
+  constructor(public readonly userErrors: CartUserError[]) {
+    super(userErrors.map((e) => e.message).join(", "));
+    this.name = "CartMutationError";
+  }
+}
+
+interface CartPayload {
+  cart: RawCart | null;
+  userErrors: CartUserError[];
+}
+
+function unwrapCart(payload: CartPayload): Cart {
+  if (payload.userErrors.length > 0) throw new CartMutationError(payload.userErrors);
+  if (!payload.cart) throw new CartMutationError([{ field: null, message: "Shopify returned no cart." }]);
+  return mapCart(payload.cart);
 }
 
 export function createShopifyStorefront(config: StorefrontConfig) {
@@ -103,50 +133,53 @@ export function createShopifyStorefront(config: StorefrontConfig) {
       return data.cart ? mapCart(data.cart) : null;
     },
 
-    async createCart(lines: { merchandiseId: string; quantity: number }[]): Promise<Cart> {
-      const data = await client.request<{
-        cartCreate: { cart: RawCart; userErrors: { field: string[]; message: string }[] };
-      }>(CART_CREATE_MUTATION, { lines });
-      if (data.cartCreate.userErrors.length > 0) {
-        throw new Error(data.cartCreate.userErrors.map((e) => e.message).join(", "));
-      }
-      return mapCart(data.cartCreate.cart);
+    async createCart(
+      lines: { merchandiseId: string; quantity: number }[],
+      buyerIdentity?: CartBuyerIdentityInput,
+    ): Promise<Cart> {
+      const data = await client.request<{ cartCreate: CartPayload }>(CART_CREATE_MUTATION, {
+        lines,
+        buyerIdentity: buyerIdentity ?? null,
+      });
+      return unwrapCart(data.cartCreate);
+    },
+
+    async updateCartBuyerIdentity(cartId: string, buyerIdentity: CartBuyerIdentityInput): Promise<Cart> {
+      const data = await client.request<{ cartBuyerIdentityUpdate: CartPayload }>(
+        CART_BUYER_IDENTITY_UPDATE_MUTATION,
+        { cartId, buyerIdentity },
+      );
+      return unwrapCart(data.cartBuyerIdentityUpdate);
     },
 
     async addCartLines(
       cartId: string,
       lines: { merchandiseId: string; quantity: number }[],
     ): Promise<Cart> {
-      const data = await client.request<{
-        cartLinesAdd: { cart: RawCart; userErrors: { field: string[]; message: string }[] };
-      }>(CART_LINES_ADD_MUTATION, { cartId, lines });
-      if (data.cartLinesAdd.userErrors.length > 0) {
-        throw new Error(data.cartLinesAdd.userErrors.map((e) => e.message).join(", "));
-      }
-      return mapCart(data.cartLinesAdd.cart);
+      const data = await client.request<{ cartLinesAdd: CartPayload }>(CART_LINES_ADD_MUTATION, {
+        cartId,
+        lines,
+      });
+      return unwrapCart(data.cartLinesAdd);
     },
 
     async updateCartLines(
       cartId: string,
       lines: { id: string; quantity: number }[],
     ): Promise<Cart> {
-      const data = await client.request<{
-        cartLinesUpdate: { cart: RawCart; userErrors: { field: string[]; message: string }[] };
-      }>(CART_LINES_UPDATE_MUTATION, { cartId, lines });
-      if (data.cartLinesUpdate.userErrors.length > 0) {
-        throw new Error(data.cartLinesUpdate.userErrors.map((e) => e.message).join(", "));
-      }
-      return mapCart(data.cartLinesUpdate.cart);
+      const data = await client.request<{ cartLinesUpdate: CartPayload }>(CART_LINES_UPDATE_MUTATION, {
+        cartId,
+        lines,
+      });
+      return unwrapCart(data.cartLinesUpdate);
     },
 
     async removeCartLines(cartId: string, lineIds: string[]): Promise<Cart> {
-      const data = await client.request<{
-        cartLinesRemove: { cart: RawCart; userErrors: { field: string[]; message: string }[] };
-      }>(CART_LINES_REMOVE_MUTATION, { cartId, lineIds });
-      if (data.cartLinesRemove.userErrors.length > 0) {
-        throw new Error(data.cartLinesRemove.userErrors.map((e) => e.message).join(", "));
-      }
-      return mapCart(data.cartLinesRemove.cart);
+      const data = await client.request<{ cartLinesRemove: CartPayload }>(CART_LINES_REMOVE_MUTATION, {
+        cartId,
+        lineIds,
+      });
+      return unwrapCart(data.cartLinesRemove);
     },
   };
 }
