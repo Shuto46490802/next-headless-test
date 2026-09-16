@@ -3,10 +3,10 @@ import { buildLogoutUrl } from "@repo/shopify-customer";
 import { oauthConfig } from "../../../../lib/shopify";
 
 /**
- * Opt-in Shopify logout for the "wrong brand" access-denied page. Deliberately not
+ * Opt-in Shopify logout for the "wrong membership" access-denied page. Deliberately not
  * automatic: RP-Initiated Logout clears the session for the whole Shopify identity, which
  * would otherwise silently sign the customer out of a different, currently-valid session
- * on whichever brand this account actually belongs to. Only runs when the customer
+ * on whichever site this account's membership actually belongs to. Only runs when the customer
  * explicitly asks to sign out and try a different account.
  */
 export async function POST(request: NextRequest) {

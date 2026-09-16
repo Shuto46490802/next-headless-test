@@ -2,8 +2,9 @@ import { createAdminDriver } from "./admin";
 import { createMockDriver } from "./mock";
 import type { CustomerDataDriver } from "./types";
 
-export type { CustomerDataDriver } from "./types";
-export { createAdminDriver } from "./admin";
+export type { CustomerDataDriver, SiteMembership } from "./types";
+export { SITE_MEMBERSHIPS, isSiteMembership } from "./types";
+export { createAdminDriver, SITE_MEMBERSHIP_METAFIELD, FAVOURITES_METAFIELD } from "./admin";
 export { createMockDriver } from "./mock";
 
 export interface CustomerDataStoreConfig {

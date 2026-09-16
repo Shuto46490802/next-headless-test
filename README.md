@@ -1,16 +1,16 @@
 # Shuto Headless
 
-Three Shopify headless storefronts (`brand-a`, `brand-b`, `brand-c` — placeholder names) built with Next.js, sharing one Shopify instance (`shuto-development-store`), one Storefront API token, and one Customer Account API OAuth client. Not built on Hydrogen/Oxygen — deployable to Vercel now, portable to Azure later.
+Three Shopify headless storefronts built with Next.js — **Club Connect** (`apps/brand-a`, membership code `CC`), **Partner Connect** (`apps/brand-b`, `PC`) and **Drinks Cart** (`apps/brand-c`, `DC`) —, sharing one Shopify instance (`shuto-development-store`), one Storefront API token, and one Customer Account API OAuth client. Not built on Hydrogen/Oxygen — deployable to Vercel now, portable to Azure later.
 
 ## Repo layout
 
 ```
 apps/
-  brand-a/  brand-b/  brand-c/     Next.js 15 App Router apps (ports 3001/3002/3003 in dev)
+  brand-a/  brand-b/  brand-c/     Club Connect / Partner Connect / Drinks Cart — Next.js 15 App Router apps (ports 3001/3002/3003 in dev)
 packages/
   shopify-storefront/              Storefront API client (catalog, cart)
   shopify-customer/                Customer Account API OAuth (PKCE) + GraphQL client
-  customer-data/                   custom.brand / custom.favourites: admin driver + cookie-backed mock driver
+  customer-data/                   mindarc_poc.site_membership / custom.favourites: admin driver + cookie-backed mock driver
   ui/                              shared React components
 scripts/
   setup-metafield-definitions.mjs  one-time Admin API setup for the two customer metafields
@@ -28,10 +28,10 @@ Each app needs its own `.env.local` (copy `example.env` → `.env.local` in each
 ## Auth flow
 
 - `GET /api/auth/login` — starts the PKCE authorization-code flow, redirects to Shopify's hosted login.
-- `GET /api/auth/callback` — exchanges the code, checks/sets the `custom.brand` metafield (first login on a brand claims it; a mismatched brand is redirected to `/access-denied`), then redirects back to `returnTo` on the **same site** the customer started from.
+- `GET /api/auth/callback` — exchanges the code, checks/sets the `mindarc_poc.site_membership` metafield (`CC` / `PC` / `DC`; first login on any site claims it, a mismatched membership is redirected to `/access-denied?reason=wrong_membership`), then redirects back to `returnTo` on the **same site** the customer started from.
 - `POST /api/auth/logout` — redirects through Shopify's logout endpoint and back.
 
-Because customer accounts are shared across the whole Shopify instance, a customer already signed in on `brand-a` will silently SSO into `brand-b`'s login — the brand gate in the callback route is what actually blocks that, not the login screen itself.
+Because customer accounts are shared across the whole Shopify instance, a customer already signed in on Club Connect will silently SSO into Partner Connect's login — the membership gate in the callback route is what actually blocks that, not the login screen itself.
 
 ## ⚠️ Local dev callback URLs won't work over plain HTTP
 
@@ -50,8 +50,8 @@ Then register the resulting HTTPS URLs (see below) in the Customer Account API a
    - Callback URIs: `https://<ngrok-a>/api/auth/callback`, `https://<ngrok-b>/api/auth/callback`, `https://<ngrok-c>/api/auth/callback` for local dev, plus `https://<brand-a-vercel-url>/api/auth/callback` (and b/c) once deployed.
    - Logout URIs: same origins as above (root path is fine, e.g. `https://<brand-a-vercel-url>/`).
    - JavaScript origins: the same origins, without a path.
-3. **Real brand names** — everything currently uses `brand-a` / `brand-b` / `brand-c` placeholders (folder names, `custom.brand` values, page titles, accent colors). Give me the real names/domains whenever they're decided and I'll do a find-and-replace pass.
+3. **Domains / accent colours** — the folder and package names are still `brand-a` / `brand-b` / `brand-c` (Club Connect / Partner Connect / Drinks Cart respectively); page titles and taglines use the real names. Accent colours in each `app/globals.css` are still placeholders.
 
 ## Admin API / metafields
 
-`custom.brand` (single line text) and `custom.favourites` (list of product references) already exist as metafield definitions on `shuto-development-store` — created via `scripts/setup-metafield-definitions.mjs`, safe to re-run (it no-ops if they already exist). `packages/customer-data` uses the real Admin API driver whenever `SHOPIFY_ADMIN_API_ACCESS_TOKEN` is set, and falls back to a cookie-backed mock driver otherwise — so the app runs end-to-end either way.
+`mindarc_poc.site_membership` (single line text, one of `CC` / `PC` / `DC`) and `custom.favourites` (list of product references) exist as metafield definitions on `shuto-development-store` — created via `scripts/setup-metafield-definitions.mjs`, safe to re-run (it no-ops if they already exist). `packages/customer-data` uses the real Admin API driver whenever `SHOPIFY_ADMIN_API_ACCESS_TOKEN` is set, and falls back to a cookie-backed mock driver otherwise — so the app runs end-to-end either way.

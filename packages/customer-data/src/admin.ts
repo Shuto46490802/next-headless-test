@@ -1,4 +1,4 @@
-import type { CustomerDataDriver } from "./types";
+import { isSiteMembership, type CustomerDataDriver } from "./types";
 
 export interface AdminApiConfig {
   storeDomain: string;
@@ -6,13 +6,34 @@ export interface AdminApiConfig {
   accessToken: string;
 }
 
+/** Customer metafields this driver reads/writes. Definitions live in Shopify admin. */
+export const SITE_MEMBERSHIP_METAFIELD = {
+  namespace: "mindarc_poc",
+  key: "site_membership",
+  type: "single_line_text_field",
+} as const;
+
+export const FAVOURITES_METAFIELD = {
+  namespace: "custom",
+  key: "favourites",
+  type: "list.product_reference",
+} as const;
+
+type MetafieldSpec = typeof SITE_MEMBERSHIP_METAFIELD | typeof FAVOURITES_METAFIELD;
+
 const METAFIELDS_QUERY = /* GraphQL */ `
   query GetCustomerMetafields($id: ID!) {
     customer(id: $id) {
-      brand: metafield(namespace: "custom", key: "brand") {
+      siteMembership: metafield(
+        namespace: "${SITE_MEMBERSHIP_METAFIELD.namespace}"
+        key: "${SITE_MEMBERSHIP_METAFIELD.key}"
+      ) {
         value
       }
-      favourites: metafield(namespace: "custom", key: "favourites") {
+      favourites: metafield(
+        namespace: "${FAVOURITES_METAFIELD.namespace}"
+        key: "${FAVOURITES_METAFIELD.key}"
+      ) {
         value
       }
     }
@@ -63,40 +84,39 @@ async function adminRequest<TData>(
 async function setMetafield(
   config: AdminApiConfig,
   customerId: string,
-  key: "brand" | "favourites",
-  type: "single_line_text_field" | "list.product_reference",
+  spec: MetafieldSpec,
   value: string,
 ) {
   const data = await adminRequest<{
     metafieldsSet: { userErrors: { field: string[]; message: string; code: string }[] };
   }>(config, METAFIELDS_SET_MUTATION, {
-    metafields: [{ ownerId: customerId, namespace: "custom", key, type, value }],
+    metafields: [{ ownerId: customerId, ...spec, value }],
   });
   if (data.metafieldsSet.userErrors.length > 0) {
     throw new Error(
-      `Failed to set custom.${key}: ${data.metafieldsSet.userErrors.map((e) => e.message).join(", ")}`,
+      `Failed to set ${spec.namespace}.${spec.key}: ${data.metafieldsSet.userErrors.map((e) => e.message).join(", ")}`,
     );
   }
 }
 
 /**
- * Real driver backed by the Admin API. Requires the `custom.brand` (single line text) and
- * `custom.favourites` (list of product references) metafield definitions to exist on the
- * Customer resource — see scripts/setup-metafield-definitions.mjs.
+ * Real driver backed by the Admin API. Requires the `mindarc_poc.site_membership` (single
+ * line text, values DC/CC/PC) and `custom.favourites` (list of product references)
+ * metafield definitions to exist on the Customer resource — see
+ * scripts/setup-metafield-definitions.mjs.
  */
 export function createAdminDriver(config: AdminApiConfig): CustomerDataDriver {
   return {
-    async getBrand(customerId) {
-      const data = await adminRequest<{ customer: { brand: { value: string } | null } | null }>(
-        config,
-        METAFIELDS_QUERY,
-        { id: customerId },
-      );
-      return data.customer?.brand?.value ?? null;
+    async getSiteMembership(customerId) {
+      const data = await adminRequest<{
+        customer: { siteMembership: { value: string } | null } | null;
+      }>(config, METAFIELDS_QUERY, { id: customerId });
+      const raw = data.customer?.siteMembership?.value?.trim().toUpperCase();
+      return isSiteMembership(raw) ? raw : null;
     },
 
-    async setBrand(customerId, brand) {
-      await setMetafield(config, customerId, "brand", "single_line_text_field", brand);
+    async setSiteMembership(customerId, membership) {
+      await setMetafield(config, customerId, SITE_MEMBERSHIP_METAFIELD, membership);
     },
 
     async getFavourites(customerId) {
@@ -114,13 +134,7 @@ export function createAdminDriver(config: AdminApiConfig): CustomerDataDriver {
     },
 
     async setFavourites(customerId, productIds) {
-      await setMetafield(
-        config,
-        customerId,
-        "favourites",
-        "list.product_reference",
-        JSON.stringify(productIds),
-      );
+      await setMetafield(config, customerId, FAVOURITES_METAFIELD, JSON.stringify(productIds));
     },
   };
 }

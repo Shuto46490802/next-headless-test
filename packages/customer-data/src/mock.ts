@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
-import type { CustomerDataDriver } from "./types";
+import { isSiteMembership, type CustomerDataDriver } from "./types";
 
-const BRAND_COOKIE = "shuto_mock_brand";
+const SITE_MEMBERSHIP_COOKIE = "shuto_mock_site_membership";
 const FAVOURITES_COOKIE = "shuto_mock_favourites";
 
 const COOKIE_OPTS = {
@@ -27,23 +27,27 @@ function safeParse<T>(raw: string | undefined): StoredValue<T> | null {
 }
 
 /**
- * Stand-in for the `custom.brand` / `custom.favourites` customer metafields, backed by
- * signed-out-of-band httpOnly cookies on this browser. Used automatically when no
+ * Stand-in for the `mindarc_poc.site_membership` / `custom.favourites` customer metafields,
+ * backed by signed-out-of-band httpOnly cookies on this browser. Used automatically when no
  * SHOPIFY_ADMIN_API_ACCESS_TOKEN is configured, so the demo works end-to-end without one.
  * Swap for `createAdminDriver` once the real Admin API token is wired up.
  */
 export function createMockDriver(): CustomerDataDriver {
   return {
-    async getBrand(customerId) {
+    async getSiteMembership(customerId) {
       const store = await cookies();
-      const stored = safeParse<string>(store.get(BRAND_COOKIE)?.value);
+      const stored = safeParse<string>(store.get(SITE_MEMBERSHIP_COOKIE)?.value);
       if (!stored || stored.customerId !== customerId) return null;
-      return stored.value;
+      return isSiteMembership(stored.value) ? stored.value : null;
     },
 
-    async setBrand(customerId, brand) {
+    async setSiteMembership(customerId, membership) {
       const store = await cookies();
-      store.set(BRAND_COOKIE, JSON.stringify({ customerId, value: brand }), COOKIE_OPTS);
+      store.set(
+        SITE_MEMBERSHIP_COOKIE,
+        JSON.stringify({ customerId, value: membership }),
+        COOKIE_OPTS,
+      );
     },
 
     async getFavourites(customerId) {

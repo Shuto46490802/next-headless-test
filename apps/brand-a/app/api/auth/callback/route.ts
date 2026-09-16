@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { decodeIdToken, exchangeCodeForToken } from "@repo/shopify-customer";
-import { BRAND_SLUG, customerAccount, customerData, oauthConfig } from "../../../../lib/shopify";
+import { SITE_MEMBERSHIP, customerAccount, customerData, oauthConfig } from "../../../../lib/shopify";
 import { setSessionCookie } from "../../../../lib/session";
 import { safeReturnTo } from "../../../../lib/safe-return-to";
 
@@ -50,16 +50,16 @@ export async function GET(request: NextRequest) {
     const profile = await customerAccount.getProfile(tokens.accessToken);
     const customerId = profile.id;
 
-    const existingBrand = await customerData.getBrand(customerId);
-    if (existingBrand && existingBrand !== BRAND_SLUG) {
+    const existingMembership = await customerData.getSiteMembership(customerId);
+    if (existingMembership && existingMembership !== SITE_MEMBERSHIP) {
       // Don't auto-trigger a Shopify logout here: RP-Initiated Logout terminates the
       // session for the whole identity, not just this brand — it would silently kill an
-      // already-valid, currently-in-use session on whichever brand this account actually
-      // belongs to. Instead, stash the id_token and let the customer opt into that
+      // already-valid, currently-in-use session on whichever site this account's
+      // membership actually belongs to. Instead, stash the id_token and let the customer opt into that
       // themselves from the access-denied page ("sign out and try again"), via
       // /api/auth/logout-pending.
       const res = NextResponse.redirect(
-        new URL("/access-denied?reason=wrong_brand", request.nextUrl.origin),
+        new URL("/access-denied?reason=wrong_membership", request.nextUrl.origin),
       );
       res.cookies.set("shuto_pending_logout_id_token", tokens.idToken, {
         httpOnly: true,
@@ -70,8 +70,9 @@ export async function GET(request: NextRequest) {
       });
       return clearOauthCookies(res);
     }
-    if (!existingBrand) {
-      await customerData.setBrand(customerId, BRAND_SLUG);
+    if (!existingMembership) {
+      // First login anywhere claims the account for this site.
+      await customerData.setSiteMembership(customerId, SITE_MEMBERSHIP);
     }
 
     await setSessionCookie({

@@ -5,7 +5,7 @@ import {
   type CustomerAccountOAuthConfig,
 } from "@repo/shopify-customer";
 import { createCustomerDataStore } from "@repo/customer-data";
-import { brand } from "./brand";
+import { siteMembership } from "./brand";
 
 const storeDomain = process.env.SHOPIFY_STORE_DOMAIN as string;
 
@@ -33,4 +33,4 @@ export const customerData = createCustomerDataStore({
   adminAccessToken: process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN,
 });
 
-export const BRAND_SLUG = brand.slug;
+export const SITE_MEMBERSHIP = siteMembership;

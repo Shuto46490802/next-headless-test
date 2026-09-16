@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// One-time setup: creates the customer.custom.brand and customer.custom.favourites
-// metafield definitions used by @repo/customer-data's admin driver.
+// One-time setup: creates the customer.mindarc_poc.site_membership and
+// customer.custom.favourites metafield definitions used by @repo/customer-data's admin
+// driver. Safe to re-run — definitions that already exist are skipped.
 //
 // Usage:
 //   SHOPIFY_STORE_DOMAIN=shuto-development-store.myshopify.com \
@@ -39,12 +40,14 @@ const MUTATION = /* GraphQL */ `
 
 const definitions = [
   {
-    name: "Brand",
-    namespace: "custom",
-    key: "brand",
+    name: "Site membership",
+    namespace: "mindarc_poc",
+    key: "site_membership",
     type: "single_line_text_field",
     ownerType: "CUSTOMER",
-    description: "The single storefront brand this customer's account is locked to.",
+    description:
+      "The single headless site this customer's account is locked to: CC (Club Connect), PC (Partner Connect) or DC (Drinks Cart).",
+    validations: [{ name: "choices", value: JSON.stringify(["CC", "PC", "DC"]) }],
   },
   {
     name: "Favourites",
@@ -72,13 +75,13 @@ async function main() {
     const alreadyExists = result?.userErrors?.some((e) => e.code === "TAKEN");
 
     if (alreadyExists) {
-      console.log(`✓ custom.${definition.key} already exists, skipping.`);
+      console.log(`✓ ${definition.namespace}.${definition.key} already exists, skipping.`);
     } else if (result?.userErrors?.length) {
-      console.error(`✗ custom.${definition.key} failed:`, result.userErrors);
+      console.error(`✗ ${definition.namespace}.${definition.key} failed:`, result.userErrors);
     } else if (result?.createdDefinition) {
-      console.log(`✓ Created custom.${definition.key} (${result.createdDefinition.id})`);
+      console.log(`✓ Created ${definition.namespace}.${definition.key} (${result.createdDefinition.id})`);
     } else {
-      console.error(`✗ custom.${definition.key} unexpected response:`, JSON.stringify(json));
+      console.error(`✗ ${definition.namespace}.${definition.key} unexpected response:`, JSON.stringify(json));
     }
   }
 }
