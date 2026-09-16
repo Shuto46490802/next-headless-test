@@ -83,11 +83,14 @@ export async function GET(request: NextRequest) {
     });
 
     // Tie any cart started while logged out to this customer, so validation functions and
-    // checkout see the buyer identity.
+    // checkout see the buyer identity. If the cart already belongs to someone else, start
+    // this customer on a fresh cart rather than handing them the previous shopper's items.
     const cartId = request.cookies.get(CART_COOKIE)?.value;
-    if (cartId) await attachCustomerToCart(cartId, tokens.accessToken);
+    const keepCart = cartId ? await attachCustomerToCart(cartId, tokens.accessToken, customerId) : false;
 
-    return clearOauthCookies(NextResponse.redirect(new URL(returnTo, request.nextUrl.origin)));
+    const res = NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
+    if (cartId && !keepCart) res.cookies.delete(CART_COOKIE);
+    return clearOauthCookies(res);
   } catch (err) {
     console.error("OAuth callback failed", err);
     return clearOauthCookies(

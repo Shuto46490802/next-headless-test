@@ -34,15 +34,28 @@ export async function getCart(): Promise<Cart | null> {
 }
 
 /**
- * Best-effort: associate an existing (anonymous) cart with a customer who just logged in.
- * Failures are logged, not thrown — a stale cart cookie shouldn't break login, and
- * `addLines` re-attaches lazily on the next add anyway.
+ * Called at login. Associates an anonymous cart with the customer who just signed in.
+ * Returns `false` when the cart cookie should be dropped instead: the cart is gone, or it
+ * already belongs to a different customer (e.g. someone signed out without the cart cookie
+ * being cleared) — reassigning it would hand one shopper another shopper's items.
+ * Never throws: a stale cart shouldn't break login, and `addLines` re-attaches lazily.
  */
-export async function attachCustomerToCart(cartId: string, customerAccessToken: string): Promise<void> {
+export async function attachCustomerToCart(
+  cartId: string,
+  customerAccessToken: string,
+  customerId: string,
+): Promise<boolean> {
   try {
-    await storefront.updateCartBuyerIdentity(cartId, { customerAccessToken });
+    const cart = await storefront.getCart(cartId);
+    if (!cart) return false;
+    if (cart.buyerIdentity.customer && cart.buyerIdentity.customer.id !== customerId) return false;
+    if (!cart.buyerIdentity.customer) {
+      await storefront.updateCartBuyerIdentity(cartId, { customerAccessToken });
+    }
+    return true;
   } catch (err) {
     console.warn("Failed to attach customer to cart", err);
+    return true;
   }
 }
 
