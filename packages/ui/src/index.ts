@@ -14,3 +14,4 @@ export * from "./components/OrderLineItems";
 export * from "./components/AddToCartForm";
 export * from "./components/StatusBadge";
 export * from "./components/ActionForms";
+export * from "./components/PointsSummary";

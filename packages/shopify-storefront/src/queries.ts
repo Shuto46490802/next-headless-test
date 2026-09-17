@@ -40,6 +40,9 @@ export const PRODUCT_DETAIL_QUERY = /* GraphQL */ `
     product(handle: $handle) {
       ...ProductSummaryFields
       descriptionHtml
+      pointsCost: metafield(namespace: "mindarc_poc", key: "points_cost") {
+        value
+      }
       images(first: 10) {
         nodes {
           ...ImageFields
@@ -163,6 +166,10 @@ export const CART_FRAGMENT = /* GraphQL */ `
       nodes {
         id
         quantity
+        attributes {
+          key
+          value
+        }
         cost {
           totalAmount {
             ...MoneyFields
@@ -178,6 +185,9 @@ export const CART_FRAGMENT = /* GraphQL */ `
             product {
               handle
               title
+              pointsCost: metafield(namespace: "mindarc_poc", key: "points_cost") {
+                value
+              }
             }
             selectedOptions {
               name

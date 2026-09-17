@@ -4,6 +4,7 @@ import type { CustomerDataDriver } from "./types";
 
 export type {
   CustomerDataDriver,
+  PointsProfile,
   SiteMembership,
   LocationUser,
   CompanyRole,
@@ -16,6 +17,7 @@ export {
   hasAdminCredentials,
   SITE_MEMBERSHIP_METAFIELD,
   FAVOURITES_METAFIELD,
+  POINTS_BALANCE_METAFIELD,
   type AdminApiConfig,
 } from "./admin";
 export { createMockDriver } from "./mock";

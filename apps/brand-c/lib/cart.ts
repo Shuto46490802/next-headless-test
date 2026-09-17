@@ -1,5 +1,10 @@
 import { cookies } from "next/headers";
-import type { Cart, CartBuyerIdentityInput } from "@repo/shopify-storefront";
+import {
+  USE_POINTS_ATTRIBUTE,
+  type Cart,
+  type CartBuyerIdentityInput,
+  type CartLineInput,
+} from "@repo/shopify-storefront";
 import { storefront } from "./shopify";
 import { getSession } from "./session";
 
@@ -64,7 +69,7 @@ export async function attachCustomerToCart(
  * at a cart Shopify no longer has. Mutation rejections — including validation function
  * errors (VALIDATION_CUSTOM) — propagate as CartMutationError so the caller can show them.
  */
-async function addLines(lines: { merchandiseId: string; quantity: number }[]): Promise<Cart> {
+async function addLines(lines: CartLineInput[]): Promise<Cart> {
   const store = await cookies();
   const cartId = store.get(CART_COOKIE)?.value;
   const buyerIdentity = await currentBuyerIdentity();
@@ -82,8 +87,16 @@ async function addLines(lines: { merchandiseId: string; quantity: number }[]): P
   return cart;
 }
 
-export async function addToCart(merchandiseId: string, quantity = 1): Promise<Cart> {
-  return addLines([{ merchandiseId, quantity }]);
+/**
+ * Adds a line. With `usePoints`, the line carries `_use_points=true` so the checkout discount
+ * function treats it as a points line. Cash lines carry no attribute at all — never "false".
+ */
+export async function addToCart(merchandiseId: string, quantity = 1, usePoints = false): Promise<Cart> {
+  return addLines([
+    usePoints
+      ? { merchandiseId, quantity, attributes: [{ key: USE_POINTS_ATTRIBUTE, value: "true" }] }
+      : { merchandiseId, quantity },
+  ]);
 }
 
 export async function updateCartLine(lineId: string, quantity: number): Promise<Cart | null> {
@@ -91,6 +104,22 @@ export async function updateCartLine(lineId: string, quantity: number): Promise<
   const cartId = store.get(CART_COOKIE)?.value;
   if (!cartId) return null;
   return storefront.updateCartLines(cartId, [{ id: lineId, quantity }]);
+}
+
+/**
+ * Switches a line between points and cash by replacing its attributes. Other attributes on
+ * the line are preserved; `_use_points` is added or dropped.
+ */
+export async function setLinePayment(lineId: string, usePoints: boolean): Promise<Cart | null> {
+  const store = await cookies();
+  const cartId = store.get(CART_COOKIE)?.value;
+  if (!cartId) return null;
+  const cart = await storefront.getCart(cartId);
+  const line = cart?.lines.find((l) => l.id === lineId);
+  if (!cart || !line) return cart;
+  const others = line.attributes.filter((a) => a.key !== USE_POINTS_ATTRIBUTE);
+  const attributes = usePoints ? [...others, { key: USE_POINTS_ATTRIBUTE, value: "true" }] : others;
+  return storefront.updateCartLines(cart.id, [{ id: lineId, attributes }]);
 }
 
 export async function removeCartLine(lineId: string): Promise<Cart | null> {

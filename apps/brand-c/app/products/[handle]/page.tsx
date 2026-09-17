@@ -7,6 +7,7 @@ import { storefront } from "../../../lib/shopify";
 import { addToCart } from "../../../lib/cart";
 import { getSession } from "../../../lib/session";
 import { getFavouriteIds } from "../../../lib/favorites";
+import { getPointsContext } from "../../../lib/points";
 
 export default async function ProductPage({
   params,
@@ -17,12 +18,15 @@ export default async function ProductPage({
   const product = await storefront.getProduct(handle);
   if (!product) notFound();
 
-  const [session, favouriteIds] = await Promise.all([getSession(), getFavouriteIds()]);
+  const [session, favouriteIds, points] = await Promise.all([getSession(), getFavouriteIds(), getPointsContext()]);
 
-  async function addProductToCart(variantId: string, quantity: number): Promise<AddToCartResult> {
+  async function addProductToCart(variantId: string, quantity: number, usePoints: boolean): Promise<AddToCartResult> {
     "use server";
     try {
-      await addToCart(variantId, quantity);
+      // Only honour the points flag when the feature is on for this customer — never trust
+      // the browser to opt into a discount.
+      const ctx = await getPointsContext();
+      await addToCart(variantId, quantity, usePoints && ctx.enabled);
     } catch (err) {
       // Validation function rejections (e.g. no liquor licence) arrive as CartMutationError
       // carrying the function's message; anything else gets a generic fallback.
@@ -73,6 +77,11 @@ export default async function ProductPage({
           options={product.options}
           variants={product.variants}
           onAddToCart={addProductToCart}
+          points={
+            points.enabled && product.pointsCost != null
+              ? { costPerUnit: product.pointsCost, balance: points.balance, defaultMethod: points.defaultMethod }
+              : null
+          }
         />
         <div
           className="prose prose-neutral max-w-none text-neutral-600"

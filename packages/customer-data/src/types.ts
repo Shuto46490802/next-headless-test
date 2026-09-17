@@ -24,6 +24,16 @@ export interface CustomerDataDriver {
   /** Product GIDs the customer has favourited (`custom.favourites`). */
   getFavourites(customerId: string): Promise<string[]>;
   setFavourites(customerId: string, productIds: string[]): Promise<void>;
+  /**
+   * Pay-with-points inputs: `mindarc_poc.points_balance` (null when unset) and the
+   * customer's tags (used to pick the default payment method on the PDP).
+   */
+  getPointsProfile(customerId: string): Promise<PointsProfile>;
+}
+
+export interface PointsProfile {
+  balance: number | null;
+  tags: string[];
 }
 
 /** A contact's standing at one company location, as rendered on the partner Users page. */

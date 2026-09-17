@@ -13,14 +13,30 @@ export interface AddToCartVariant {
 
 export type AddToCartResult = { ok: true } | { ok: false; message: string };
 
+export type PaymentMethod = "cash" | "points";
+
+export interface PointsOption {
+  /** Points per unit (`mindarc_poc.points_cost`). */
+  costPerUnit: number;
+  /** Customer's `mindarc_poc.points_balance`; null when unknown. */
+  balance: number | null;
+  /** Which button is styled as the primary action. */
+  defaultMethod: PaymentMethod;
+}
+
 export interface AddToCartFormProps {
   options: { name: string; values: string[] }[];
   variants: AddToCartVariant[];
-  /** Return `{ ok: false, message }` to show a rejection (e.g. a cart validation rule) under the button. */
-  onAddToCart: (variantId: string, quantity: number) => Promise<AddToCartResult | void>;
+  /**
+   * Return `{ ok: false, message }` to show a rejection (e.g. a cart validation rule) under the
+   * button. `usePoints` is true when the customer chose the points action.
+   */
+  onAddToCart: (variantId: string, quantity: number, usePoints: boolean) => Promise<AddToCartResult | void>;
+  /** When set, a second "pay with points" action is offered alongside cash. */
+  points?: PointsOption | null;
 }
 
-export function AddToCartForm({ options, variants, onAddToCart }: AddToCartFormProps) {
+export function AddToCartForm({ options, variants, onAddToCart, points = null }: AddToCartFormProps) {
   const [selected, setSelected] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       options.map((option) => [option.name, option.values[0] ?? ""]),
@@ -39,18 +55,33 @@ export function AddToCartForm({ options, variants, onAddToCart }: AddToCartFormP
     [variants, selected],
   );
 
-  function addToCart() {
+  const [lastMethod, setLastMethod] = useState<PaymentMethod>("cash");
+
+  function addToCart(usePoints: boolean) {
     if (!matchedVariant) return;
     setAdded(false);
     setError(null);
+    setLastMethod(usePoints ? "points" : "cash");
     startTransition(async () => {
-      const result = await onAddToCart(matchedVariant.id, quantity);
+      const result = await onAddToCart(matchedVariant.id, quantity, usePoints);
       if (result && !result.ok) {
         setError(result.message);
         return;
       }
       setAdded(true);
     });
+  }
+
+  const soldOut = !matchedVariant || !matchedVariant.availableForSale;
+  const pointsTotal = points ? points.costPerUnit * quantity : 0;
+  const exceedsBalance = points?.balance != null && pointsTotal > points.balance;
+
+  function label(method: PaymentMethod) {
+    if (soldOut) return "Sold out";
+    if (isPending && lastMethod === method) return "Adding…";
+    if (added && lastMethod === method) return "Added ✓";
+    if (method === "points") return `Add to cart · ${pointsTotal.toLocaleString()} points`;
+    return `Add to cart${matchedVariant ? ` · ${formatMoney(matchedVariant.price)}` : ""}`;
   }
 
   return (
@@ -98,21 +129,43 @@ export function AddToCartForm({ options, variants, onAddToCart }: AddToCartFormP
             </option>
           ))}
         </select>
-        <Button
-          type="button"
-          onClick={addToCart}
-          disabled={!matchedVariant || !matchedVariant.availableForSale || isPending}
-          className="flex-1"
-        >
-          {!matchedVariant || !matchedVariant.availableForSale
-            ? "Sold out"
-            : isPending
-              ? "Adding…"
-              : added
-                ? "Added ✓"
-                : "Add to cart"}
-        </Button>
+        {points ? (
+          <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              variant={points.defaultMethod === "cash" ? "primary" : "secondary"}
+              onClick={() => addToCart(false)}
+              disabled={soldOut || isPending}
+              className="flex-1"
+            >
+              {label("cash")}
+            </Button>
+            <Button
+              type="button"
+              variant={points.defaultMethod === "points" ? "primary" : "secondary"}
+              onClick={() => addToCart(true)}
+              disabled={soldOut || isPending}
+              className="flex-1"
+            >
+              {label("points")}
+            </Button>
+          </div>
+        ) : (
+          <Button type="button" onClick={() => addToCart(false)} disabled={soldOut || isPending} className="flex-1">
+            {label("cash")}
+          </Button>
+        )}
       </div>
+
+      {points ? (
+        <p className={`text-sm ${exceedsBalance ? "text-amber-700" : "text-neutral-500"}`}>
+          {points.balance == null
+            ? `${points.costPerUnit.toLocaleString()} points per unit.`
+            : exceedsBalance
+              ? `${pointsTotal.toLocaleString()} points needed, you have ${points.balance.toLocaleString()}. Points lines over your balance are charged at cash price at checkout.`
+              : `${points.costPerUnit.toLocaleString()} points per unit · balance ${points.balance.toLocaleString()} points.`}
+        </p>
+      ) : null}
 
       {error ? (
         <p role="alert" className="text-sm text-red-600">

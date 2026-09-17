@@ -30,6 +30,8 @@ export interface ProductSummary {
 
 export interface ProductDetail extends ProductSummary {
   descriptionHtml: string;
+  /** `mindarc_poc.points_cost` (points per unit). Null → cash only. */
+  pointsCost: number | null;
   images: ImageNode[];
   options: { name: string; values: string[] }[];
   variants: ProductVariant[];
@@ -50,15 +52,39 @@ export interface CollectionWithProducts extends CollectionSummary {
   };
 }
 
+/** Line item property that marks a cart line as paid with points. Value must be exactly "true". */
+export const USE_POINTS_ATTRIBUTE = "_use_points";
+
+export interface CartLineAttribute {
+  key: string;
+  value: string;
+}
+
+export interface CartLineInput {
+  merchandiseId: string;
+  quantity: number;
+  attributes?: CartLineAttribute[];
+}
+
+export interface CartLineUpdateInput {
+  id: string;
+  quantity?: number;
+  /** Replaces the line's attributes. Pass `[]` to clear (e.g. switch a points line back to cash). */
+  attributes?: CartLineAttribute[];
+}
+
 export interface CartLine {
   id: string;
   quantity: number;
+  attributes: CartLineAttribute[];
+  /** Derived: `_use_points` attribute is exactly "true". */
+  usePoints: boolean;
   cost: { totalAmount: Money };
   merchandise: {
     id: string;
     title: string;
     image: ImageNode | null;
-    product: { handle: string; title: string };
+    product: { handle: string; title: string; pointsCost: number | null };
     selectedOptions: { name: string; value: string }[];
   };
 }

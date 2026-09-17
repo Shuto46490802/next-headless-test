@@ -77,6 +77,24 @@ const definitions = [
     ownerType: "CUSTOMER",
     description: "Products this customer has added to their favourites.",
   },
+  {
+    name: "Points balance",
+    namespace: "mindarc_poc",
+    key: "points_balance",
+    type: "number_integer",
+    ownerType: "CUSTOMER",
+    description: "Drinks Cart pay-with-points balance. Read by the storefront and the checkout discount function.",
+  },
+  {
+    name: "Points cost",
+    namespace: "mindarc_poc",
+    key: "points_cost",
+    type: "number_integer",
+    ownerType: "PRODUCT",
+    description: "Points per unit when paying with points. Absent = cash only.",
+    // The storefront reads this via the Storefront API, so it needs storefront access.
+    access: { storefront: "PUBLIC_READ" },
+  },
 ];
 
 async function main() {

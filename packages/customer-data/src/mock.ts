@@ -65,5 +65,10 @@ export function createMockDriver(): CustomerDataDriver {
         COOKIE_OPTS,
       );
     },
+
+    /** Demo values so pay-with-points renders without an Admin token: 120 points, staff tag. */
+    async getPointsProfile() {
+      return { balance: 120, tags: ["staff"] };
+    },
   };
 }

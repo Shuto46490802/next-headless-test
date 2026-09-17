@@ -6,9 +6,11 @@ export interface HeaderProps {
   isLoggedIn: boolean;
   cartQuantity: number;
   collections: { handle: string; title: string }[];
+  /** Shown as a chip next to the account link when the site supports pay-with-points. */
+  pointsBalance?: number | null;
 }
 
-export function Header({ brand, isLoggedIn, cartQuantity, collections }: HeaderProps) {
+export function Header({ brand, isLoggedIn, cartQuantity, collections, pointsBalance = null }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-4 sm:px-6">
@@ -32,6 +34,14 @@ export function Header({ brand, isLoggedIn, cartQuantity, collections }: HeaderP
         </nav>
 
         <div className="flex items-center gap-4">
+          {isLoggedIn && pointsBalance != null ? (
+            <span
+              className="hidden rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 sm:inline-block"
+              title="Your points balance"
+            >
+              {pointsBalance.toLocaleString()} pts
+            </span>
+          ) : null}
           {isLoggedIn ? (
             <Link href="/account" className="text-sm font-medium text-neutral-700 hover:text-neutral-900">
               Account

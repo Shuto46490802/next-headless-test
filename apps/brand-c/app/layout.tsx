@@ -5,6 +5,7 @@ import { brand } from "../lib/brand";
 import { storefront } from "../lib/shopify";
 import { getSession } from "../lib/session";
 import { getCart } from "../lib/cart";
+import { getPointsContext } from "../lib/points";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,10 +14,11 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [collections, session, cart] = await Promise.all([
+  const [collections, session, cart, points] = await Promise.all([
     storefront.listCollections(6).catch(() => []),
     getSession(),
     getCart(),
+    getPointsContext(),
   ]);
 
   return (
@@ -26,6 +28,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           brand={brand}
           isLoggedIn={Boolean(session)}
           cartQuantity={cart?.totalQuantity ?? 0}
+          pointsBalance={points.enabled ? points.balance : null}
           collections={collections.map((collection) => ({
             handle: collection.handle,
             title: collection.title,

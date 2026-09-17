@@ -15,6 +15,9 @@ import {
 import type {
   Cart,
   CartBuyerIdentityInput,
+  CartLine,
+  CartLineInput,
+  CartLineUpdateInput,
   CollectionSummary,
   CollectionWithProducts,
   ProductDetail,
@@ -23,9 +26,11 @@ import type {
 
 export * from "./types";
 export { StorefrontApiError } from "./client";
+import { USE_POINTS_ATTRIBUTE } from "./types";
 
 interface RawProductDetail extends ProductSummary {
   descriptionHtml: string;
+  pointsCost: { value: string } | null;
   images: { nodes: ProductDetail["images"] };
   options: ProductDetail["options"];
   variants: { nodes: ProductDetail["variants"] };
@@ -38,11 +43,33 @@ interface RawCollection extends CollectionSummary {
   };
 }
 
-type RawCart = Omit<Cart, "lines"> & { lines: { nodes: Cart["lines"] } };
+type RawCartLine = Omit<CartLine, "usePoints" | "merchandise"> & {
+  merchandise: Omit<CartLine["merchandise"], "product"> & {
+    product: { handle: string; title: string; pointsCost: { value: string } | null };
+  };
+};
+type RawCart = Omit<Cart, "lines"> & { lines: { nodes: RawCartLine[] } };
+
+/** Parses an integer metafield value; anything non-numeric or non-positive is treated as absent. */
+function parsePoints(raw: { value: string } | null | undefined): number | null {
+  if (!raw) return null;
+  const n = Number.parseInt(raw.value, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function mapCartLine(raw: RawCartLine): CartLine {
+  const { merchandise, ...rest } = raw;
+  const { product, ...merch } = merchandise;
+  return {
+    ...rest,
+    usePoints: raw.attributes.some((a) => a.key === USE_POINTS_ATTRIBUTE && a.value === "true"),
+    merchandise: { ...merch, product: { ...product, pointsCost: parsePoints(product.pointsCost) } },
+  };
+}
 
 function mapCart(raw: RawCart): Cart {
   const { lines, ...rest } = raw;
-  return { ...rest, lines: lines.nodes };
+  return { ...rest, lines: lines.nodes.map(mapCartLine) };
 }
 
 export interface CartUserError {
@@ -85,8 +112,8 @@ export function createShopifyStorefront(config: StorefrontConfig) {
         { handle },
       );
       if (!data.product) return null;
-      const { images, variants, ...rest } = data.product;
-      return { ...rest, images: images.nodes, variants: variants.nodes };
+      const { images, variants, pointsCost, ...rest } = data.product;
+      return { ...rest, pointsCost: parsePoints(pointsCost), images: images.nodes, variants: variants.nodes };
     },
 
     async listProducts(
@@ -133,10 +160,7 @@ export function createShopifyStorefront(config: StorefrontConfig) {
       return data.cart ? mapCart(data.cart) : null;
     },
 
-    async createCart(
-      lines: { merchandiseId: string; quantity: number }[],
-      buyerIdentity?: CartBuyerIdentityInput,
-    ): Promise<Cart> {
+    async createCart(lines: CartLineInput[], buyerIdentity?: CartBuyerIdentityInput): Promise<Cart> {
       const data = await client.request<{ cartCreate: CartPayload }>(CART_CREATE_MUTATION, {
         lines,
         buyerIdentity: buyerIdentity ?? null,
@@ -152,10 +176,7 @@ export function createShopifyStorefront(config: StorefrontConfig) {
       return unwrapCart(data.cartBuyerIdentityUpdate);
     },
 
-    async addCartLines(
-      cartId: string,
-      lines: { merchandiseId: string; quantity: number }[],
-    ): Promise<Cart> {
+    async addCartLines(cartId: string, lines: CartLineInput[]): Promise<Cart> {
       const data = await client.request<{ cartLinesAdd: CartPayload }>(CART_LINES_ADD_MUTATION, {
         cartId,
         lines,
@@ -163,10 +184,7 @@ export function createShopifyStorefront(config: StorefrontConfig) {
       return unwrapCart(data.cartLinesAdd);
     },
 
-    async updateCartLines(
-      cartId: string,
-      lines: { id: string; quantity: number }[],
-    ): Promise<Cart> {
+    async updateCartLines(cartId: string, lines: CartLineUpdateInput[]): Promise<Cart> {
       const data = await client.request<{ cartLinesUpdate: CartPayload }>(CART_LINES_UPDATE_MUTATION, {
         cartId,
         lines,

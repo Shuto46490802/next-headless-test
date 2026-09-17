@@ -93,6 +93,12 @@ export const FAVOURITES_METAFIELD = {
   type: "list.product_reference",
 } as const;
 
+export const POINTS_BALANCE_METAFIELD = {
+  namespace: "mindarc_poc",
+  key: "points_balance",
+  type: "number_integer",
+} as const;
+
 export type MetafieldSpec = typeof SITE_MEMBERSHIP_METAFIELD | typeof FAVOURITES_METAFIELD;
 
 const METAFIELDS_QUERY = /* GraphQL */ `
@@ -110,6 +116,13 @@ const METAFIELDS_QUERY = /* GraphQL */ `
       ) {
         value
       }
+      pointsBalance: metafield(
+        namespace: "${POINTS_BALANCE_METAFIELD.namespace}"
+        key: "${POINTS_BALANCE_METAFIELD.key}"
+      ) {
+        value
+      }
+      tags
     }
   }
 `;
@@ -210,6 +223,18 @@ export function createAdminDriver(config: AdminApiConfig): CustomerDataDriver {
 
     async setFavourites(customerId, productIds) {
       await setMetafield(config, customerId, FAVOURITES_METAFIELD, JSON.stringify(productIds));
+    },
+
+    async getPointsProfile(customerId) {
+      const data = await adminRequest<{
+        customer: { pointsBalance: { value: string } | null; tags: string[] } | null;
+      }>(config, METAFIELDS_QUERY, { id: customerId });
+      const raw = data.customer?.pointsBalance?.value;
+      const balance = raw == null ? null : Number.parseInt(raw, 10);
+      return {
+        balance: balance != null && Number.isFinite(balance) ? balance : null,
+        tags: data.customer?.tags ?? [],
+      };
     },
   };
 }
