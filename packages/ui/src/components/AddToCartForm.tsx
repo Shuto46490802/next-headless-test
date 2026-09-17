@@ -74,9 +74,11 @@ export function AddToCartForm({ options, variants, onAddToCart, points = null }:
 
   const soldOut = !matchedVariant || !matchedVariant.availableForSale;
   const pointsTotal = points ? points.costPerUnit * quantity : 0;
-  const exceedsBalance = points?.balance != null && pointsTotal > points.balance;
+  const balance = points?.balance ?? 0;
+  const exceedsBalance = Boolean(points) && pointsTotal > balance;
   // The points action is only offered when the customer can actually cover it — checkout
   // applies points all-or-nothing, so an unaffordable points line would just be charged cash.
+  // No balance (metafield unset) counts as zero.
   const canPayWithPoints = Boolean(points) && !exceedsBalance;
 
   function label(method: PaymentMethod) {
@@ -162,11 +164,9 @@ export function AddToCartForm({ options, variants, onAddToCart, points = null }:
 
       {points ? (
         <p className="text-sm text-neutral-500">
-          {points.balance == null
-            ? `${points.costPerUnit.toLocaleString()} points per unit.`
-            : exceedsBalance
-              ? `Pay with points needs ${pointsTotal.toLocaleString()} points; you have ${points.balance.toLocaleString()}.`
-              : `${points.costPerUnit.toLocaleString()} points per unit · balance ${points.balance.toLocaleString()} points.`}
+          {exceedsBalance
+            ? `Pay with points needs ${pointsTotal.toLocaleString()} points; you have ${balance.toLocaleString()}.`
+            : `${points.costPerUnit.toLocaleString()} points per unit · balance ${balance.toLocaleString()} points.`}
         </p>
       ) : null}
 

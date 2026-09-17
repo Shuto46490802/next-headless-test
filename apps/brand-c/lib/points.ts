@@ -31,10 +31,12 @@ export async function getPointsContext(): Promise<PointsContext> {
   try {
     const profile = await customerData.getPointsProfile(session.customerId);
     const isStaff = profile.tags.some((t) => t.trim().toLowerCase() === STAFF_TAG);
-    return { enabled: true, balance: profile.balance, defaultMethod: isStaff ? "points" : "cash" };
+    // An unset points_balance metafield means the customer has no points to spend.
+    return { enabled: true, balance: profile.balance ?? 0, defaultMethod: isStaff ? "points" : "cash" };
   } catch (err) {
+    // Fail closed: without a balance we can't tell what's affordable, so don't offer points.
     console.warn("Failed to load points profile", err);
-    return { enabled: true, balance: null, defaultMethod: "cash" };
+    return DISABLED;
   }
 }
 
