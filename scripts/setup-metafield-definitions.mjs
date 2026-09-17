@@ -29,8 +29,8 @@ if (!storeDomain || (!accessToken && !(clientId && clientSecret))) {
 if (!accessToken) {
   const res = await fetch(`https://${storeDomain}/admin/oauth/access_token`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ grant_type: "client_credentials", client_id: clientId, client_secret: clientSecret }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+    body: new URLSearchParams({ grant_type: "client_credentials", client_id: clientId, client_secret: clientSecret }).toString(),
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok || !json.access_token) {

@@ -29,25 +29,29 @@ interface CachedToken {
 const tokenCache = new Map<string, Promise<CachedToken>>();
 
 async function fetchClientCredentialsToken(config: AdminApiConfig): Promise<CachedToken> {
+  // Shopify's OAuth endpoint expects a form-encoded body, not JSON.
   const res = await fetch(`https://${config.storeDomain}/admin/oauth/access_token`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+    body: new URLSearchParams({
       grant_type: "client_credentials",
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-    }),
+      client_id: config.clientId!,
+      client_secret: config.clientSecret!,
+    }).toString(),
   });
-  const json = (await res.json().catch(() => ({}))) as {
-    access_token?: string;
-    expires_in?: number;
-    error?: string;
-    error_description?: string;
-  };
+  const text = await res.text();
+  let json: { access_token?: string; expires_in?: number; error?: string; error_description?: string } = {};
+  try {
+    json = JSON.parse(text);
+  } catch {
+    // non-JSON body — surfaced via `text` below
+  }
   if (!res.ok || !json.access_token) {
+    const detail = json.error_description ?? json.error ?? text.slice(0, 300) ?? "empty response";
     throw new Error(
-      `Admin API client credentials grant failed (${res.status}): ${json.error_description ?? json.error ?? "no access_token in response"}. ` +
-        "Check SHOPIFY_ADMIN_CLIENT_ID / SHOPIFY_ADMIN_CLIENT_SECRET and that the app is installed on the store.",
+      `Admin API client credentials grant failed (${res.status}): ${detail}. ` +
+        "Check SHOPIFY_ADMIN_CLIENT_ID / SHOPIFY_ADMIN_CLIENT_SECRET, that the app is installed on the store, " +
+        "and that the store and app are in the same Dev Dashboard organization.",
     );
   }
   // Tokens last ~24h; refresh a minute early so an in-flight request never uses a dead one.
