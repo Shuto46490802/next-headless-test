@@ -86,6 +86,14 @@ const definitions = [
     description: "Drinks Cart pay-with-points balance. Read by the storefront and the checkout discount function.",
   },
   {
+    name: "Last login at",
+    namespace: "mindarc_poc",
+    key: "last_login_at",
+    type: "date_time",
+    ownerType: "CUSTOMER",
+    description: "Set by the headless storefronts on every sign-in. Drives Registered/Pending on the partner Users page.",
+  },
+  {
     name: "Points cost",
     namespace: "mindarc_poc",
     key: "points_cost",

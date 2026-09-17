@@ -66,6 +66,10 @@ export function createMockDriver(): CustomerDataDriver {
       );
     },
 
+    async recordLogin() {
+      // Nothing to persist without an Admin token.
+    },
+
     /** Demo values so pay-with-points renders without an Admin token: 120 points, staff tag. */
     async getPointsProfile() {
       return { balance: 120, tags: ["staff"] };

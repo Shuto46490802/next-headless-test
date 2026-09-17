@@ -29,6 +29,8 @@ export interface CustomerDataDriver {
    * customer's tags (used to pick the default payment method on the PDP).
    */
   getPointsProfile(customerId: string): Promise<PointsProfile>;
+  /** Records a successful sign-in (`mindarc_poc.last_login_at`). Called by the OAuth callback. */
+  recordLogin(customerId: string): Promise<void>;
 }
 
 export interface PointsProfile {
@@ -48,9 +50,9 @@ export interface LocationUser {
   roleAssignmentId: string;
   isMainContact: boolean;
   /**
-   * `active` once the customer has signed in / created their account (Customer.state ENABLED);
-   * `pending` otherwise. New customer accounts have no invite-acceptance step, so pending
-   * simply means "hasn't signed in yet".
+   * `active` once the customer has signed in at least once (`mindarc_poc.last_login_at` set by
+   * the OAuth callback, or legacy Customer.state ENABLED); `pending` otherwise. New customer
+   * accounts have no invite-acceptance step, so pending simply means "hasn't signed in yet".
    */
   status: "active" | "pending";
 }

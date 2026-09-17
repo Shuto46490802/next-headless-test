@@ -99,7 +99,21 @@ export const POINTS_BALANCE_METAFIELD = {
   type: "number_integer",
 } as const;
 
-export type MetafieldSpec = typeof SITE_MEMBERSHIP_METAFIELD | typeof FAVOURITES_METAFIELD;
+/**
+ * Stamped by the OAuth callback on every sign-in. New customer accounts never flip
+ * `Customer.state` to ENABLED (there is no invite to accept), so this is the only reliable
+ * "has this person ever logged in" signal — the partner Users page derives Registered/Pending from it.
+ */
+export const LAST_LOGIN_METAFIELD = {
+  namespace: "mindarc_poc",
+  key: "last_login_at",
+  type: "date_time",
+} as const;
+
+export type MetafieldSpec =
+  | typeof SITE_MEMBERSHIP_METAFIELD
+  | typeof FAVOURITES_METAFIELD
+  | typeof LAST_LOGIN_METAFIELD;
 
 const METAFIELDS_QUERY = /* GraphQL */ `
   query GetCustomerMetafields($id: ID!) {
@@ -223,6 +237,10 @@ export function createAdminDriver(config: AdminApiConfig): CustomerDataDriver {
 
     async setFavourites(customerId, productIds) {
       await setMetafield(config, customerId, FAVOURITES_METAFIELD, JSON.stringify(productIds));
+    },
+
+    async recordLogin(customerId) {
+      await setMetafield(config, customerId, LAST_LOGIN_METAFIELD, new Date().toISOString());
     },
 
     async getPointsProfile(customerId) {

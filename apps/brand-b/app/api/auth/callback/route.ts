@@ -76,6 +76,14 @@ export async function GET(request: NextRequest) {
       await customerData.setSiteMembership(customerId, SITE_MEMBERSHIP);
     }
 
+    // Best-effort: mark the account as having signed in (drives Registered/Pending on the
+    // partner Users page). Never block login on it.
+    try {
+      await customerData.recordLogin(customerId);
+    } catch (err) {
+      console.warn("Failed to record login", err);
+    }
+
     // B2B: default every cart to the contact's first company location so checkout shows
     // company features. Non-B2B customers get null and shop with a personal cart.
     let companyLocationId: string | null = null;

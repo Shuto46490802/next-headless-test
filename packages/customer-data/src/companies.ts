@@ -1,4 +1,10 @@
-import { adminRequest, setMetafield, SITE_MEMBERSHIP_METAFIELD, type AdminApiConfig } from "./admin";
+import {
+  adminRequest,
+  setMetafield,
+  LAST_LOGIN_METAFIELD,
+  SITE_MEMBERSHIP_METAFIELD,
+  type AdminApiConfig,
+} from "./admin";
 import { isSiteMembership, type CompanyRole, type LocationUser, type LocationUsersResult, type SiteMembership } from "./types";
 
 /**
@@ -57,6 +63,12 @@ const LOCATION_USERS_QUERY = /* GraphQL */ `
                 emailAddress
               }
               state
+              lastLogin: metafield(
+                namespace: "${LAST_LOGIN_METAFIELD.namespace}"
+                key: "${LAST_LOGIN_METAFIELD.key}"
+              ) {
+                value
+              }
             }
           }
         }
@@ -200,6 +212,7 @@ interface RawRoleAssignment {
       lastName: string | null;
       defaultEmailAddress: { emailAddress: string | null } | null;
       state: "DECLINED" | "DISABLED" | "ENABLED" | "INVITED";
+      lastLogin: { value: string } | null;
     };
   };
 }
@@ -266,7 +279,12 @@ export function createCompanyAdmin(config: AdminApiConfig) {
         roleName: ra.role.name,
         roleAssignmentId: ra.id,
         isMainContact: ra.companyContact.isMainContact,
-        status: ra.companyContact.customer.state === "ENABLED" ? "active" : "pending",
+        // New customer accounts never reach state ENABLED, so "has signed in" comes from the
+        // last_login_at metafield our callback stamps; ENABLED still counts for legacy accounts.
+        status:
+          ra.companyContact.customer.lastLogin?.value || ra.companyContact.customer.state === "ENABLED"
+            ? "active"
+            : "pending",
       }));
       users.sort((a, b) => (a.lastName ?? "").localeCompare(b.lastName ?? "") || (a.email ?? "").localeCompare(b.email ?? ""));
 

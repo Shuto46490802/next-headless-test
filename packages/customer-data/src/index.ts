@@ -18,6 +18,7 @@ export {
   SITE_MEMBERSHIP_METAFIELD,
   FAVOURITES_METAFIELD,
   POINTS_BALANCE_METAFIELD,
+  LAST_LOGIN_METAFIELD,
   type AdminApiConfig,
 } from "./admin";
 export { createMockDriver } from "./mock";
