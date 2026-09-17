@@ -2,7 +2,14 @@ import { createAdminDriver } from "./admin";
 import { createMockDriver } from "./mock";
 import type { CustomerDataDriver } from "./types";
 
-export type { CustomerDataDriver, SiteMembership } from "./types";
+export type {
+  CustomerDataDriver,
+  SiteMembership,
+  LocationUser,
+  CompanyRole,
+  LocationUsersResult,
+} from "./types";
+export { createCompanyAdmin, CompanyAdminError, type CompanyAdmin, type AddUserInput } from "./companies";
 export { SITE_MEMBERSHIPS, isSiteMembership } from "./types";
 export { createAdminDriver, SITE_MEMBERSHIP_METAFIELD, FAVOURITES_METAFIELD } from "./admin";
 export { createMockDriver } from "./mock";

@@ -53,3 +53,16 @@ export interface OrderDetail extends OrderSummary {
   shippingAddress: Address | null;
   lineItems: OrderLineItem[];
 }
+
+/** One location the signed-in customer can act for, with the role they hold there. */
+export interface CompanyLocationAccess {
+  contactId: string;
+  companyId: string;
+  companyName: string;
+  locationId: string;
+  locationName: string;
+  roleId: string | null;
+  roleName: string | null;
+  /** True when the role name contains "admin" (Shopify's built-in "Location admin"). */
+  isAdmin: boolean;
+}

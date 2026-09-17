@@ -19,7 +19,7 @@ export const FAVOURITES_METAFIELD = {
   type: "list.product_reference",
 } as const;
 
-type MetafieldSpec = typeof SITE_MEMBERSHIP_METAFIELD | typeof FAVOURITES_METAFIELD;
+export type MetafieldSpec = typeof SITE_MEMBERSHIP_METAFIELD | typeof FAVOURITES_METAFIELD;
 
 const METAFIELDS_QUERY = /* GraphQL */ `
   query GetCustomerMetafields($id: ID!) {
@@ -57,7 +57,7 @@ const METAFIELDS_SET_MUTATION = /* GraphQL */ `
   }
 `;
 
-async function adminRequest<TData>(
+export async function adminRequest<TData>(
   config: AdminApiConfig,
   query: string,
   variables: Record<string, unknown>,
@@ -81,7 +81,7 @@ async function adminRequest<TData>(
   return json.data as TData;
 }
 
-async function setMetafield(
+export async function setMetafield(
   config: AdminApiConfig,
   customerId: string,
   spec: MetafieldSpec,

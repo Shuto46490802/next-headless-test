@@ -1,5 +1,6 @@
 import { createCustomerAccountClient, type CustomerAccountConfig } from "./client";
 import {
+  COMPANY_ACCESS_QUERY,
   ADDRESS_CREATE_MUTATION,
   ADDRESS_DELETE_MUTATION,
   ADDRESS_UPDATE_MUTATION,
@@ -9,7 +10,14 @@ import {
   ORDER_DETAIL_QUERY,
   ORDERS_QUERY,
 } from "./queries";
-import type { Address, CustomerProfile, OrderDetail, OrderLineItem, OrderSummary } from "./types";
+import type {
+  Address,
+  CompanyLocationAccess,
+  CustomerProfile,
+  OrderDetail,
+  OrderLineItem,
+  OrderSummary,
+} from "./types";
 
 type RawOrderDetail = Omit<OrderDetail, "lineItems"> & { lineItems: { nodes: OrderLineItem[] } };
 
@@ -119,6 +127,53 @@ export function createShopifyCustomerAccount(config: CustomerAccountConfig) {
         hasNextPage: data.customer.orders.pageInfo.hasNextPage,
         endCursor: data.customer.orders.pageInfo.endCursor,
       };
+    },
+
+    /**
+     * Every company location the customer can act for, flattened, with their role at each.
+     * Empty for a plain B2C customer.
+     */
+    async getCompanyAccess(accessToken: string): Promise<CompanyLocationAccess[]> {
+      const data = await client.request<{
+        customer: {
+          id: string;
+          companyContacts: {
+            nodes: {
+              id: string;
+              company: { id: string; name: string } | null;
+              locations: {
+                nodes: {
+                  id: string;
+                  name: string;
+                  roleAssignments: {
+                    nodes: { id: string; role: { id: string; name: string }; contact: { id: string } }[];
+                  };
+                }[];
+              };
+            }[];
+          };
+        };
+      }>(accessToken, COMPANY_ACCESS_QUERY);
+
+      const out: CompanyLocationAccess[] = [];
+      for (const contact of data.customer.companyContacts.nodes) {
+        if (!contact.company) continue;
+        for (const loc of contact.locations.nodes) {
+          const mine = loc.roleAssignments.nodes.find((ra) => ra.contact.id === contact.id) ?? null;
+          const roleName = mine?.role.name ?? null;
+          out.push({
+            contactId: contact.id,
+            companyId: contact.company.id,
+            companyName: contact.company.name,
+            locationId: loc.id,
+            locationName: loc.name,
+            roleId: mine?.role.id ?? null,
+            roleName,
+            isAdmin: roleName?.toLowerCase().includes("admin") ?? false,
+          });
+        }
+      }
+      return out;
     },
 
     async getOrder(accessToken: string, id: string): Promise<OrderDetail | null> {

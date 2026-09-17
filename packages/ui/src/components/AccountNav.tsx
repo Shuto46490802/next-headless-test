@@ -10,11 +10,16 @@ const LINKS = [
   { href: "/account/favorites", label: "Favorites" },
 ];
 
-export function AccountNav() {
+export interface AccountNavProps {
+  /** Extra links appended after the standard ones (e.g. partner-only pages). */
+  links?: { href: string; label: string }[];
+}
+
+export function AccountNav({ links = [] }: AccountNavProps) {
   const pathname = usePathname();
   return (
     <nav className="flex flex-col gap-1 text-sm">
-      {LINKS.map((link) => {
+      {[...LINKS, ...links].map((link) => {
         const active = pathname === link.href;
         return (
           <Link

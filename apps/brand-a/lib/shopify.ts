@@ -4,7 +4,7 @@ import {
   extractShopId,
   type CustomerAccountOAuthConfig,
 } from "@repo/shopify-customer";
-import { createCustomerDataStore } from "@repo/customer-data";
+import { createCompanyAdmin, createCustomerDataStore } from "@repo/customer-data";
 import { siteMembership } from "./brand";
 
 const storeDomain = process.env.SHOPIFY_STORE_DOMAIN as string;
@@ -32,5 +32,17 @@ export const customerData = createCustomerDataStore({
   adminApiVersion: process.env.SHOPIFY_ADMIN_API_VERSION ?? "2026-07",
   adminAccessToken: process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN,
 });
+
+/**
+ * Admin API operations for the partner Users page. Null when no Admin token is configured —
+ * the page then explains that user management is unavailable rather than failing.
+ */
+export const companyAdmin = process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN
+  ? createCompanyAdmin({
+      storeDomain,
+      apiVersion: process.env.SHOPIFY_ADMIN_API_VERSION ?? "2026-07",
+      accessToken: process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN,
+    })
+  : null;
 
 export const SITE_MEMBERSHIP = siteMembership;

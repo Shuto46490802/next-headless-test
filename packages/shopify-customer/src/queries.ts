@@ -184,3 +184,43 @@ export const ORDER_DETAIL_QUERY = /* GraphQL */ `
   }
   ${ADDRESS_FRAGMENT}
 `;
+
+/**
+ * The signed-in customer's B2B standing: every company they're a contact of, the locations
+ * they can act for, and the role they hold at each. Drives the partner Users page's
+ * permission check (view = any role at the location, manage = a role named "*admin*").
+ */
+export const COMPANY_ACCESS_QUERY = /* GraphQL */ `
+  query CompanyAccess {
+    customer {
+      id
+      companyContacts(first: 10) {
+        nodes {
+          id
+          company {
+            id
+            name
+          }
+          locations(first: 25) {
+            nodes {
+              id
+              name
+              roleAssignments(first: 50) {
+                nodes {
+                  id
+                  role {
+                    id
+                    name
+                  }
+                  contact {
+                    id
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;

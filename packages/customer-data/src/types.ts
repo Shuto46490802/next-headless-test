@@ -25,3 +25,36 @@ export interface CustomerDataDriver {
   getFavourites(customerId: string): Promise<string[]>;
   setFavourites(customerId: string, productIds: string[]): Promise<void>;
 }
+
+/** A contact's standing at one company location, as rendered on the partner Users page. */
+export interface LocationUser {
+  contactId: string;
+  customerId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  /** Shopify role name at this location, e.g. "Location admin" or "Ordering only". */
+  roleName: string;
+  roleAssignmentId: string;
+  isMainContact: boolean;
+  /**
+   * `active` once the customer has signed in / created their account (Customer.state ENABLED);
+   * `pending` otherwise. New customer accounts have no invite-acceptance step, so pending
+   * simply means "hasn't signed in yet".
+   */
+  status: "active" | "pending";
+}
+
+export interface CompanyRole {
+  id: string;
+  name: string;
+}
+
+export interface LocationUsersResult {
+  locationId: string;
+  locationName: string;
+  companyId: string;
+  companyName: string;
+  roles: CompanyRole[];
+  users: LocationUser[];
+}
