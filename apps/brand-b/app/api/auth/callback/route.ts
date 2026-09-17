@@ -76,17 +76,29 @@ export async function GET(request: NextRequest) {
       await customerData.setSiteMembership(customerId, SITE_MEMBERSHIP);
     }
 
-    await setSessionCookie({
+    // B2B: default every cart to the contact's first company location so checkout shows
+    // company features. Non-B2B customers get null and shop with a personal cart.
+    let companyLocationId: string | null = null;
+    try {
+      companyLocationId = (await customerAccount.getDefaultCompanyLocation(tokens.accessToken))?.locationId ?? null;
+    } catch (err) {
+      console.warn("Failed to load default company location", err);
+    }
+
+    const session = {
       customerId,
       email: profile.emailAddress?.emailAddress ?? null,
       tokens,
-    });
+      companyLocationId,
+    };
+    await setSessionCookie(session);
 
-    // Tie any cart started while logged out to this customer, so validation functions and
-    // checkout see the buyer identity. If the cart already belongs to someone else, start
-    // this customer on a fresh cart rather than handing them the previous shopper's items.
+    // Tie any cart started while logged out to this customer (and company location), so
+    // validation functions and checkout see the buyer identity. If the cart already belongs
+    // to someone else, start this customer on a fresh cart rather than handing them the
+    // previous shopper's items.
     const cartId = request.cookies.get(CART_COOKIE)?.value;
-    const keepCart = cartId ? await attachCustomerToCart(cartId, tokens.accessToken, customerId) : false;
+    const keepCart = cartId ? await attachCustomerToCart(cartId, session) : false;
 
     const res = NextResponse.redirect(new URL(returnTo, request.nextUrl.origin));
     if (cartId && !keepCart) res.cookies.delete(CART_COOKIE);

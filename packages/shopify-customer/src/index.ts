@@ -1,6 +1,7 @@
 import { createCustomerAccountClient, type CustomerAccountConfig } from "./client";
 import {
   COMPANY_ACCESS_QUERY,
+  DEFAULT_COMPANY_LOCATION_QUERY,
   ADDRESS_CREATE_MUTATION,
   ADDRESS_DELETE_MUTATION,
   ADDRESS_UPDATE_MUTATION,
@@ -14,6 +15,7 @@ import type {
   Address,
   CompanyLocationAccess,
   CustomerProfile,
+  DefaultCompanyLocation,
   OrderDetail,
   OrderLineItem,
   OrderSummary,
@@ -126,6 +128,32 @@ export function createShopifyCustomerAccount(config: CustomerAccountConfig) {
         orders: data.customer.orders.nodes,
         hasNextPage: data.customer.orders.pageInfo.hasNextPage,
         endCursor: data.customer.orders.pageInfo.endCursor,
+      };
+    },
+
+    /**
+     * The location B2B carts default to: `companyContacts[0].locations[0]`. Null for a
+     * customer with no company contact or no locations (i.e. a D2C shopper).
+     */
+    async getDefaultCompanyLocation(accessToken: string): Promise<DefaultCompanyLocation | null> {
+      const data = await client.request<{
+        customer: {
+          companyContacts: {
+            nodes: {
+              company: { id: string; name: string } | null;
+              locations: { nodes: { id: string; name: string }[] };
+            }[];
+          };
+        };
+      }>(accessToken, DEFAULT_COMPANY_LOCATION_QUERY);
+      const contact = data.customer.companyContacts.nodes[0];
+      const location = contact?.locations.nodes[0];
+      if (!contact?.company || !location) return null;
+      return {
+        companyId: contact.company.id,
+        companyName: contact.company.name,
+        locationId: location.id,
+        locationName: location.name,
       };
     },
 

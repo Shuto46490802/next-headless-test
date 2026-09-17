@@ -153,6 +153,16 @@ export const CART_FRAGMENT = /* GraphQL */ `
       customer {
         id
       }
+      purchasingCompany {
+        company {
+          id
+          name
+        }
+        location {
+          id
+          name
+        }
+      }
     }
     cost {
       subtotalAmount {

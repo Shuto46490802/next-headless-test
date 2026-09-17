@@ -54,6 +54,13 @@ export interface OrderDetail extends OrderSummary {
   lineItems: OrderLineItem[];
 }
 
+export interface DefaultCompanyLocation {
+  companyId: string;
+  companyName: string;
+  locationId: string;
+  locationName: string;
+}
+
 /** One location the signed-in customer can act for, with the role they hold there. */
 export interface CompanyLocationAccess {
   contactId: string;

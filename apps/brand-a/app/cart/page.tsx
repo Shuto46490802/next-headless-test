@@ -52,7 +52,8 @@ export default async function CartPage() {
           <span>Subtotal</span>
           <span>{formatMoney(cart.cost.subtotalAmount)}</span>
         </div>
-        <a href={cart.checkoutUrl}>
+        {/* Plain <a>: this route applies the buyer identity then redirects to Shopify checkout. */}
+        <a href="/api/checkout">
           <Button className="w-full">Checkout</Button>
         </a>
       </div>

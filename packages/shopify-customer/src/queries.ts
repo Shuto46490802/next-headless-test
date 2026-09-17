@@ -224,3 +224,25 @@ export const COMPANY_ACCESS_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+/** The customer's default company location: first location of their first company contact. */
+export const DEFAULT_COMPANY_LOCATION_QUERY = /* GraphQL */ `
+  query DefaultCompanyLocation {
+    customer {
+      companyContacts(first: 1) {
+        nodes {
+          company {
+            id
+            name
+          }
+          locations(first: 10) {
+            nodes {
+              id
+              name
+            }
+          }
+        }
+      }
+    }
+  }
+`;

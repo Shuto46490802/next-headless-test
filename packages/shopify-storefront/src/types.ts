@@ -93,13 +93,22 @@ export interface CartBuyerIdentityInput {
   /** Customer Account API access token (or legacy Storefront customerAccessToken). */
   customerAccessToken?: string;
   email?: string;
+  /** B2B: the company location the cart is purchasing for. Never set on D2C sites. */
+  companyLocationId?: string;
 }
 
 export interface Cart {
   id: string;
   checkoutUrl: string;
   totalQuantity: number;
-  buyerIdentity: { customer: { id: string } | null };
+  buyerIdentity: {
+    customer: { id: string } | null;
+    /** Non-null only when the cart carries a company location the customer is a contact of. */
+    purchasingCompany: {
+      company: { id: string; name: string };
+      location: { id: string; name: string };
+    } | null;
+  };
   cost: {
     subtotalAmount: Money;
     totalAmount: Money;

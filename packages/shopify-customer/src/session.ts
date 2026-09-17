@@ -5,6 +5,11 @@ export interface SessionPayload {
   customerId: string;
   email: string | null;
   tokens: TokenSet;
+  /**
+   * B2B only: the company location every cart is created for (first location of the
+   * customer's first company contact). Undefined on D2C sites and for non-B2B customers.
+   */
+  companyLocationId?: string | null;
 }
 
 async function deriveKey(secret: string): Promise<Uint8Array> {
@@ -21,6 +26,7 @@ export async function encryptSession(payload: SessionPayload, secret: string): P
     customerId: payload.customerId,
     email: payload.email,
     tokens: payload.tokens,
+    companyLocationId: payload.companyLocationId ?? null,
   })
     .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
     .setIssuedAt()
