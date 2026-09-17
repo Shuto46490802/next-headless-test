@@ -3,6 +3,7 @@ import { brand } from "../lib/brand";
 import { storefront } from "../lib/shopify";
 import { getSession } from "../lib/session";
 import { getFavouriteIds } from "../lib/favorites";
+import { getPointsContext } from "../lib/points";
 
 export default async function HomePage() {
   const collections = await storefront.listCollections(1).catch(() => []);
@@ -18,7 +19,7 @@ export default async function HomePage() {
         .then((r) => r.items)
         .catch(() => []);
 
-  const [session, favouriteIds] = await Promise.all([getSession(), getFavouriteIds()]);
+  const [session, favouriteIds, points] = await Promise.all([getSession(), getFavouriteIds(), getPointsContext()]);
 
   return (
     <>
@@ -33,6 +34,7 @@ export default async function HomePage() {
                 product={product}
                 isLoggedIn={Boolean(session)}
                 isFavourited={favouriteIds.has(product.id)}
+                showPoints={points.enabled}
               />
             ))}
           </div>

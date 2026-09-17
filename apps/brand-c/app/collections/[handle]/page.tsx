@@ -3,6 +3,7 @@ import { ProductCard, EmptyState } from "@repo/ui";
 import { storefront } from "../../../lib/shopify";
 import { getSession } from "../../../lib/session";
 import { getFavouriteIds } from "../../../lib/favorites";
+import { getPointsContext } from "../../../lib/points";
 
 export default async function CollectionPage({
   params,
@@ -13,7 +14,7 @@ export default async function CollectionPage({
   const collection = await storefront.getCollection(handle, { first: 24 });
   if (!collection) notFound();
 
-  const [session, favouriteIds] = await Promise.all([getSession(), getFavouriteIds()]);
+  const [session, favouriteIds, points] = await Promise.all([getSession(), getFavouriteIds(), getPointsContext()]);
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
@@ -32,6 +33,7 @@ export default async function CollectionPage({
               product={product}
               isLoggedIn={Boolean(session)}
               isFavourited={favouriteIds.has(product.id)}
+              showPoints={points.enabled}
             />
           ))}
         </div>

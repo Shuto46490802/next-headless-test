@@ -9,15 +9,20 @@ export interface ProductCardData {
   title: string;
   featuredImage: { url: string; altText: string | null } | null;
   priceRange: { minVariantPrice: { amount: string; currencyCode: string } };
+  /** Points per unit when the product can be paid with points. */
+  pointsCost?: number | null;
 }
 
 export interface ProductCardProps {
   product: ProductCardData;
   isLoggedIn: boolean;
   isFavourited: boolean;
+  /** Show "or N points" after the price (Drinks Cart, signed-in members). */
+  showPoints?: boolean;
 }
 
-export function ProductCard({ product, isLoggedIn, isFavourited }: ProductCardProps) {
+export function ProductCard({ product, isLoggedIn, isFavourited, showPoints = false }: ProductCardProps) {
+  const pointsCost = showPoints ? (product.pointsCost ?? null) : null;
   return (
     <div className="group relative flex flex-col gap-3">
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-neutral-100">
@@ -47,6 +52,7 @@ export function ProductCard({ product, isLoggedIn, isFavourited }: ProductCardPr
         <span className="text-sm font-medium text-neutral-900">{product.title}</span>
         <span className="text-sm text-neutral-500">
           {formatMoney(product.priceRange.minVariantPrice)}
+          {pointsCost != null ? ` or ${pointsCost.toLocaleString()} points` : null}
         </span>
       </Link>
     </div>

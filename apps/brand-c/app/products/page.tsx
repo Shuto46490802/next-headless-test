@@ -2,10 +2,11 @@ import { ProductCard, EmptyState } from "@repo/ui";
 import { storefront } from "../../lib/shopify";
 import { getSession } from "../../lib/session";
 import { getFavouriteIds } from "../../lib/favorites";
+import { getPointsContext } from "../../lib/points";
 
 export default async function AllProductsPage() {
   const { items: products } = await storefront.listProducts({ first: 24 });
-  const [session, favouriteIds] = await Promise.all([getSession(), getFavouriteIds()]);
+  const [session, favouriteIds, points] = await Promise.all([getSession(), getFavouriteIds(), getPointsContext()]);
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
@@ -20,6 +21,7 @@ export default async function AllProductsPage() {
               product={product}
               isLoggedIn={Boolean(session)}
               isFavourited={favouriteIds.has(product.id)}
+              showPoints={points.enabled}
             />
           ))}
         </div>

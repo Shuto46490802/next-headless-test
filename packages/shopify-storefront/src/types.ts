@@ -26,12 +26,12 @@ export interface ProductSummary {
   title: string;
   featuredImage: ImageNode | null;
   priceRange: { minVariantPrice: Money; maxVariantPrice: Money };
+  /** `mindarc_poc.points_cost` (points per unit). Null → cash only. */
+  pointsCost: number | null;
 }
 
 export interface ProductDetail extends ProductSummary {
   descriptionHtml: string;
-  /** `mindarc_poc.points_cost` (points per unit). Null → cash only. */
-  pointsCost: number | null;
   images: ImageNode[];
   options: { name: string; values: string[] }[];
   variants: ProductVariant[];

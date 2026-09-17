@@ -28,9 +28,10 @@ export * from "./types";
 export { StorefrontApiError } from "./client";
 import { USE_POINTS_ATTRIBUTE } from "./types";
 
-interface RawProductDetail extends ProductSummary {
+type RawProductSummary = Omit<ProductSummary, "pointsCost"> & { pointsCostMetafield: { value: string } | null };
+
+interface RawProductDetail extends RawProductSummary {
   descriptionHtml: string;
-  pointsCost: { value: string } | null;
   images: { nodes: ProductDetail["images"] };
   options: ProductDetail["options"];
   variants: { nodes: ProductDetail["variants"] };
@@ -38,7 +39,7 @@ interface RawProductDetail extends ProductSummary {
 
 interface RawCollection extends CollectionSummary {
   products: {
-    nodes: ProductSummary[];
+    nodes: RawProductSummary[];
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
   };
 }
@@ -55,6 +56,11 @@ function parsePoints(raw: { value: string } | null | undefined): number | null {
   if (!raw) return null;
   const n = Number.parseInt(raw.value, 10);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function mapProductSummary(raw: RawProductSummary): ProductSummary {
+  const { pointsCostMetafield, ...rest } = raw;
+  return { ...rest, pointsCost: parsePoints(pointsCostMetafield) };
 }
 
 function mapCartLine(raw: RawCartLine): CartLine {
@@ -112,26 +118,31 @@ export function createShopifyStorefront(config: StorefrontConfig) {
         { handle },
       );
       if (!data.product) return null;
-      const { images, variants, pointsCost, ...rest } = data.product;
-      return { ...rest, pointsCost: parsePoints(pointsCost), images: images.nodes, variants: variants.nodes };
+      const { images, variants, pointsCostMetafield, ...rest } = data.product;
+      return {
+        ...rest,
+        pointsCost: parsePoints(pointsCostMetafield),
+        images: images.nodes,
+        variants: variants.nodes,
+      };
     },
 
     async listProducts(
       opts: { first?: number; after?: string } = {},
     ): Promise<{ items: ProductSummary[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } }> {
       const data = await client.request<{
-        products: { nodes: ProductSummary[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
+        products: { nodes: RawProductSummary[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
       }>(PRODUCTS_QUERY, { first: opts.first ?? 24, after: opts.after ?? null });
-      return { items: data.products.nodes, pageInfo: data.products.pageInfo };
+      return { items: data.products.nodes.map(mapProductSummary), pageInfo: data.products.pageInfo };
     },
 
     async getProductsByIds(ids: string[]): Promise<ProductSummary[]> {
       if (ids.length === 0) return [];
-      const data = await client.request<{ nodes: (ProductSummary | null)[] }>(
+      const data = await client.request<{ nodes: (RawProductSummary | null)[] }>(
         PRODUCTS_BY_IDS_QUERY,
         { ids },
       );
-      return data.nodes.filter((n): n is ProductSummary => n !== null);
+      return data.nodes.filter((n): n is RawProductSummary => n !== null).map(mapProductSummary);
     },
 
     async getCollection(
@@ -144,7 +155,7 @@ export function createShopifyStorefront(config: StorefrontConfig) {
       );
       if (!data.collection) return null;
       const { products, ...rest } = data.collection;
-      return { ...rest, products: { items: products.nodes, pageInfo: products.pageInfo } };
+      return { ...rest, products: { items: products.nodes.map(mapProductSummary), pageInfo: products.pageInfo } };
     },
 
     async listCollections(first = 12): Promise<CollectionSummary[]> {
