@@ -27,10 +27,24 @@ export const customerAccount = createShopifyCustomerAccount({
   apiVersion: process.env.SHOPIFY_CUSTOMER_API_VERSION ?? "2026-07",
 });
 
+/**
+ * Admin API credentials: a legacy static token, or a Dev Dashboard app's client id + secret
+ * (exchanged for a short-lived token automatically). Either form works; leave all blank to
+ * run against the cookie-backed mock driver.
+ */
+const adminCredentials = {
+  accessToken: process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN,
+  clientId: process.env.SHOPIFY_ADMIN_CLIENT_ID,
+  clientSecret: process.env.SHOPIFY_ADMIN_CLIENT_SECRET,
+};
+const adminApiVersion = process.env.SHOPIFY_ADMIN_API_VERSION ?? "2026-07";
+
 export const customerData = createCustomerDataStore({
   storeDomain,
-  adminApiVersion: process.env.SHOPIFY_ADMIN_API_VERSION ?? "2026-07",
-  adminAccessToken: process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN,
+  adminApiVersion,
+  adminAccessToken: adminCredentials.accessToken,
+  adminClientId: adminCredentials.clientId,
+  adminClientSecret: adminCredentials.clientSecret,
 });
 
 export const SITE_MEMBERSHIP = siteMembership;

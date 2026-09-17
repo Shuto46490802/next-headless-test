@@ -3,21 +3,41 @@
 // customer.custom.favourites metafield definitions used by @repo/customer-data's admin
 // driver. Safe to re-run — definitions that already exist are skipped.
 //
-// Usage:
+// Usage (legacy static token):
 //   SHOPIFY_STORE_DOMAIN=shuto-development-store.myshopify.com \
 //   SHOPIFY_ADMIN_API_ACCESS_TOKEN=shpat_xxx \
-//   SHOPIFY_ADMIN_API_VERSION=2026-07 \
+//   node scripts/setup-metafield-definitions.mjs
+//
+// Usage (Dev Dashboard app — client credentials grant):
+//   SHOPIFY_STORE_DOMAIN=new-store.myshopify.com \
+//   SHOPIFY_ADMIN_CLIENT_ID=xxx SHOPIFY_ADMIN_CLIENT_SECRET=shpss_xxx \
 //   node scripts/setup-metafield-definitions.mjs
 
 const storeDomain = process.env.SHOPIFY_STORE_DOMAIN;
-const accessToken = process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN;
 const apiVersion = process.env.SHOPIFY_ADMIN_API_VERSION ?? "2026-07";
+const clientId = process.env.SHOPIFY_ADMIN_CLIENT_ID;
+const clientSecret = process.env.SHOPIFY_ADMIN_CLIENT_SECRET;
+let accessToken = process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN;
 
-if (!storeDomain || !accessToken) {
+if (!storeDomain || (!accessToken && !(clientId && clientSecret))) {
   console.error(
-    "Missing SHOPIFY_STORE_DOMAIN or SHOPIFY_ADMIN_API_ACCESS_TOKEN environment variables.",
+    "Set SHOPIFY_STORE_DOMAIN plus either SHOPIFY_ADMIN_API_ACCESS_TOKEN or SHOPIFY_ADMIN_CLIENT_ID + SHOPIFY_ADMIN_CLIENT_SECRET.",
   );
   process.exit(1);
+}
+
+if (!accessToken) {
+  const res = await fetch(`https://${storeDomain}/admin/oauth/access_token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ grant_type: "client_credentials", client_id: clientId, client_secret: clientSecret }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json.access_token) {
+    console.error(`Client credentials grant failed (${res.status}):`, json);
+    process.exit(1);
+  }
+  accessToken = json.access_token;
 }
 
 const MUTATION = /* GraphQL */ `

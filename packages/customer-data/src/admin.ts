@@ -1,9 +1,79 @@
 import { isSiteMembership, type CustomerDataDriver } from "./types";
 
+/**
+ * Admin API credentials. Provide EITHER a static `accessToken` (legacy custom app created in
+ * the store admin before 2026, `shpat_…`) OR the `clientId` + `clientSecret` of a custom app
+ * created in the Dev Dashboard. With the latter, a short-lived token is fetched via the
+ * client credentials grant and cached until shortly before it expires.
+ */
 export interface AdminApiConfig {
   storeDomain: string;
   apiVersion: string;
-  accessToken: string;
+  accessToken?: string;
+  clientId?: string;
+  clientSecret?: string;
+}
+
+export function hasAdminCredentials(
+  config: Partial<Pick<AdminApiConfig, "accessToken" | "clientId" | "clientSecret">>,
+): boolean {
+  return Boolean(config.accessToken || (config.clientId && config.clientSecret));
+}
+
+interface CachedToken {
+  token: string;
+  expiresAt: number;
+}
+
+/** Per store domain — module-level so all drivers in one server process share it. */
+const tokenCache = new Map<string, Promise<CachedToken>>();
+
+async function fetchClientCredentialsToken(config: AdminApiConfig): Promise<CachedToken> {
+  const res = await fetch(`https://${config.storeDomain}/admin/oauth/access_token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "client_credentials",
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+    }),
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    access_token?: string;
+    expires_in?: number;
+    error?: string;
+    error_description?: string;
+  };
+  if (!res.ok || !json.access_token) {
+    throw new Error(
+      `Admin API client credentials grant failed (${res.status}): ${json.error_description ?? json.error ?? "no access_token in response"}. ` +
+        "Check SHOPIFY_ADMIN_CLIENT_ID / SHOPIFY_ADMIN_CLIENT_SECRET and that the app is installed on the store.",
+    );
+  }
+  // Tokens last ~24h; refresh a minute early so an in-flight request never uses a dead one.
+  const ttlMs = ((json.expires_in ?? 86399) - 60) * 1000;
+  return { token: json.access_token, expiresAt: Date.now() + ttlMs };
+}
+
+async function resolveAccessToken(config: AdminApiConfig): Promise<string> {
+  if (config.accessToken) return config.accessToken;
+  if (!config.clientId || !config.clientSecret) {
+    throw new Error("Admin API not configured: set SHOPIFY_ADMIN_API_ACCESS_TOKEN or SHOPIFY_ADMIN_CLIENT_ID + SHOPIFY_ADMIN_CLIENT_SECRET.");
+  }
+  const key = `${config.storeDomain}:${config.clientId}`;
+  let pending = tokenCache.get(key);
+  if (pending) {
+    const cached = await pending.catch(() => null);
+    if (cached && cached.expiresAt > Date.now()) return cached.token;
+  }
+  pending = fetchClientCredentialsToken(config);
+  tokenCache.set(key, pending);
+  try {
+    return (await pending).token;
+  } catch (err) {
+    tokenCache.delete(key);
+    throw err;
+  }
 }
 
 /** Customer metafields this driver reads/writes. Definitions live in Shopify admin. */
@@ -62,13 +132,14 @@ export async function adminRequest<TData>(
   query: string,
   variables: Record<string, unknown>,
 ): Promise<TData> {
+  const accessToken = await resolveAccessToken(config);
   const res = await fetch(
     `https://${config.storeDomain}/admin/api/${config.apiVersion}/graphql.json`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Shopify-Access-Token": config.accessToken,
+        "X-Shopify-Access-Token": accessToken,
       },
       body: JSON.stringify({ query, variables }),
     },
