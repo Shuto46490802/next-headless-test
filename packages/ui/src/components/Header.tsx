@@ -1,16 +1,28 @@
 import Link from "next/link";
 import type { BrandConfig } from "../types";
+import type { CartActionResult, MiniCartData } from "../cart-events";
+import { MiniCart } from "./MiniCart";
+
+export interface HeaderCartActions {
+  updateQuantity: (lineId: string, quantity: number) => Promise<CartActionResult>;
+  remove: (lineId: string) => Promise<CartActionResult>;
+  togglePoints?: (lineId: string, usePoints: boolean) => Promise<CartActionResult>;
+}
 
 export interface HeaderProps {
   brand: BrandConfig;
   isLoggedIn: boolean;
-  cartQuantity: number;
   collections: { handle: string; title: string }[];
-  /** Shown as a chip next to the account link when the site supports pay-with-points. */
-  pointsBalance?: number | null;
+  cart: MiniCartData | null;
+  cartActions: HeaderCartActions;
+  /** Where the mini cart's Checkout button goes. Defaults to the cart's own checkoutUrl. */
+  checkoutHref?: string;
+  /** Drinks Cart: enables the points summary and per-line switch in the mini cart, and the header chip. */
+  points?: { enabled: boolean; balance: number | null } | null;
 }
 
-export function Header({ brand, isLoggedIn, cartQuantity, collections, pointsBalance = null }: HeaderProps) {
+export function Header({ brand, isLoggedIn, collections, cart, cartActions, checkoutHref, points = null }: HeaderProps) {
+  const pointsBalance = points?.enabled ? points.balance : null;
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-4 sm:px-6">
@@ -53,14 +65,14 @@ export function Header({ brand, isLoggedIn, cartQuantity, collections, pointsBal
               Sign in
             </a>
           )}
-          <Link href="/cart" className="relative text-sm font-medium text-neutral-700 hover:text-neutral-900">
-            Cart
-            {cartQuantity > 0 ? (
-              <span className="absolute -right-3 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-[10px] text-brand-fg">
-                {cartQuantity}
-              </span>
-            ) : null}
-          </Link>
+          <MiniCart
+            initialCart={cart}
+            checkoutHref={checkoutHref}
+            onUpdateQuantity={cartActions.updateQuantity}
+            onRemove={cartActions.remove}
+            onTogglePoints={cartActions.togglePoints}
+            points={points}
+          />
         </div>
       </div>
     </header>

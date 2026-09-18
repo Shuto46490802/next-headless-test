@@ -6,6 +6,7 @@ import { storefront } from "../lib/shopify";
 import { getSession } from "../lib/session";
 import { getCart } from "../lib/cart";
 import { getPointsContext } from "../lib/points";
+import { removeCartLineAction, toggleLinePaymentAction, updateCartLineAction } from "./cart-actions";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,8 +28,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Header
           brand={brand}
           isLoggedIn={Boolean(session)}
-          cartQuantity={cart?.totalQuantity ?? 0}
-          pointsBalance={points.enabled ? points.balance : null}
+          cart={cart}
+          cartActions={{
+            updateQuantity: updateCartLineAction,
+            remove: removeCartLineAction,
+            togglePoints: toggleLinePaymentAction,
+          }}
+          points={{ enabled: points.enabled, balance: points.balance }}
           collections={collections.map((collection) => ({
             handle: collection.handle,
             title: collection.title,

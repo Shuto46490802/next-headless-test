@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const cartId = request.cookies.get(CART_COOKIE)?.value;
   const cart = cartId ? await storefront.getCart(cartId).catch(() => null) : null;
   if (!cart || cart.lines.length === 0) {
-    return NextResponse.redirect(new URL("/cart", request.nextUrl.origin), 303);
+    return NextResponse.redirect(new URL("/", request.nextUrl.origin), 303);
   }
 
   const session = await getSession();

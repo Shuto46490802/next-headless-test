@@ -1,13 +1,12 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { revalidatePath } from "next/cache";
 import { AddToCartForm, FavoriteButton, type AddToCartResult } from "@repo/ui";
 import { CartMutationError } from "@repo/shopify-storefront";
 import { storefront } from "../../../lib/shopify";
-import { addToCart } from "../../../lib/cart";
+import { addToCart, getCart } from "../../../lib/cart";
 import { getSession } from "../../../lib/session";
 import { getFavouriteIds } from "../../../lib/favorites";
-import { getPointsContext } from "../../../lib/points";
+import { cartPointsTotal, getPointsContext } from "../../../lib/points";
 
 export default async function ProductPage({
   params,
@@ -18,15 +17,29 @@ export default async function ProductPage({
   const product = await storefront.getProduct(handle);
   if (!product) notFound();
 
-  const [session, favouriteIds, points] = await Promise.all([getSession(), getFavouriteIds(), getPointsContext()]);
+  const [session, favouriteIds, points, cart] = await Promise.all([
+    getSession(),
+    getFavouriteIds(),
+    getPointsContext(),
+    getCart(),
+  ]);
+  const pointsCost = product.pointsCost;
+  const pointsAvailable = Math.max(0, (points.balance ?? 0) - cartPointsTotal(cart));
 
-  async function addProductToCart(variantId: string, quantity: number, usePoints: boolean): Promise<AddToCartResult> {
+  async function addProductToCart(variantId: string, quantity: number): Promise<AddToCartResult> {
     "use server";
     try {
-      // Only honour the points flag when the feature is on for this customer — never trust
-      // the browser to opt into a discount.
+      // One button: pay with points automatically when the customer's remaining balance
+      // (after what's already in the cart) covers points_cost × quantity, otherwise cash.
+      // Decided server-side so the browser can't opt into a discount it can't afford.
       const ctx = await getPointsContext();
-      await addToCart(variantId, quantity, usePoints && ctx.enabled);
+      let usePoints = false;
+      if (ctx.enabled && pointsCost != null) {
+        const remaining = (ctx.balance ?? 0) - cartPointsTotal(await getCart());
+        usePoints = pointsCost * quantity <= remaining;
+      }
+      const updated = await addToCart(variantId, quantity, usePoints);
+      return { ok: true, cart: updated, paidWithPoints: usePoints };
     } catch (err) {
       // Validation function rejections (e.g. no liquor licence) arrive as CartMutationError
       // carrying the function's message; anything else gets a generic fallback.
@@ -35,8 +48,6 @@ export default async function ProductPage({
         message: err instanceof CartMutationError ? err.message : "Couldn't add to cart. Please try again.",
       };
     }
-    revalidatePath("/cart");
-    return { ok: true };
   }
 
   return (
@@ -77,11 +88,7 @@ export default async function ProductPage({
           options={product.options}
           variants={product.variants}
           onAddToCart={addProductToCart}
-          points={
-            points.enabled && product.pointsCost != null
-              ? { costPerUnit: product.pointsCost, balance: points.balance, defaultMethod: points.defaultMethod }
-              : null
-          }
+          points={points.enabled && pointsCost != null ? { costPerUnit: pointsCost, available: pointsAvailable } : null}
         />
         <div
           className="prose prose-neutral max-w-none text-neutral-600"

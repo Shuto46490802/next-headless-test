@@ -1,23 +1,15 @@
 import type { Cart } from "@repo/shopify-storefront";
-import type { PaymentMethod } from "@repo/ui";
 import { getSession } from "./session";
 import { SITE_MEMBERSHIP, customerData } from "./shopify";
-
-/**
- * Customer tag that marks staff. Staff default to paying with points; everyone else (Friends
- * & Family) defaults to cash. The customer can always pick either on the PDP.
- */
-const STAFF_TAG = "staff";
 
 export interface PointsContext {
   /** Pay-with-points is offered: the site is Drinks Cart and the customer is signed in. */
   enabled: boolean;
-  /** `mindarc_poc.points_balance`; null when unset or unknown. */
+  /** `mindarc_poc.points_balance`; 0 when unset. Null only while disabled. */
   balance: number | null;
-  defaultMethod: PaymentMethod;
 }
 
-const DISABLED: PointsContext = { enabled: false, balance: null, defaultMethod: "cash" };
+const DISABLED: PointsContext = { enabled: false, balance: null };
 
 /**
  * Pay-with-points is a Drinks Cart (DC) feature. Login already locks this site to DC members,
@@ -30,9 +22,8 @@ export async function getPointsContext(): Promise<PointsContext> {
   if (!session) return DISABLED;
   try {
     const profile = await customerData.getPointsProfile(session.customerId);
-    const isStaff = profile.tags.some((t) => t.trim().toLowerCase() === STAFF_TAG);
     // An unset points_balance metafield means the customer has no points to spend.
-    return { enabled: true, balance: profile.balance ?? 0, defaultMethod: isStaff ? "points" : "cash" };
+    return { enabled: true, balance: profile.balance ?? 0 };
   } catch (err) {
     // Fail closed: without a balance we can't tell what's affordable, so don't offer points.
     console.warn("Failed to load points profile", err);

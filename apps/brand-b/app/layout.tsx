@@ -5,6 +5,7 @@ import { brand } from "../lib/brand";
 import { storefront } from "../lib/shopify";
 import { getSession } from "../lib/session";
 import { getCart } from "../lib/cart";
+import { removeCartLineAction, updateCartLineAction } from "./cart-actions";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,7 +26,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Header
           brand={brand}
           isLoggedIn={Boolean(session)}
-          cartQuantity={cart?.totalQuantity ?? 0}
+          cart={cart}
+          cartActions={{ updateQuantity: updateCartLineAction, remove: removeCartLineAction }}
+          checkoutHref="/api/checkout"
           collections={collections.map((collection) => ({
             handle: collection.handle,
             title: collection.title,
