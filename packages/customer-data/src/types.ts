@@ -45,16 +45,21 @@ export interface LocationUser {
   firstName: string | null;
   lastName: string | null;
   email: string | null;
-  /** Shopify role name at this location, e.g. "Location admin" or "Ordering only". */
-  roleName: string;
-  roleAssignmentId: string;
+  /** Role held at this location; null once the user is archived (no role here any more). */
+  roleId: string | null;
+  roleName: string | null;
+  /** Every role assignment this contact holds at this location (normally 0 or 1). */
+  roleAssignmentIds: string[];
   isMainContact: boolean;
   /**
-   * `active` once the customer has signed in at least once (`mindarc_poc.last_login_at` set by
-   * the OAuth callback, or legacy Customer.state ENABLED); `pending` otherwise. New customer
-   * accounts have no invite-acceptance step, so pending simply means "hasn't signed in yet".
+   * `active` — has a role here and has signed in at least once (`mindarc_poc.last_login_at`,
+   * stamped by the OAuth callback; legacy accounts may instead report Customer.state ENABLED).
+   * `invited` — has a role here but has never signed in. New customer accounts have no invite
+   * to accept, so this simply means "hasn't logged in yet".
+   * `deactivated` — still a contact of the company but holds no role at this location, so they
+   * can't order for it. Archiving is what puts someone here.
    */
-  status: "active" | "pending";
+  status: "active" | "invited" | "deactivated";
 }
 
 export interface CompanyRole {
@@ -62,11 +67,23 @@ export interface CompanyRole {
   name: string;
 }
 
+/** Company details shown in the header block above the users table. */
+export interface CompanyProfile {
+  id: string;
+  name: string;
+  /** `Company.externalId` — shown as "ACCOUNT <n>". Null when the merchant hasn't set one. */
+  accountNumber: string | null;
+  abn: string | null;
+  /** True when the company's liquor licence metafield is set — drives the LICENSED badge. */
+  licensed: boolean;
+}
+
 export interface LocationUsersResult {
   locationId: string;
   locationName: string;
-  companyId: string;
-  companyName: string;
+  company: CompanyProfile;
   roles: CompanyRole[];
+  /** Role granted when a user is reactivated. */
+  defaultRoleId: string | null;
   users: LocationUser[];
 }

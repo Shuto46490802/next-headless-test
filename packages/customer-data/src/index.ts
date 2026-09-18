@@ -8,6 +8,7 @@ export type {
   SiteMembership,
   LocationUser,
   CompanyRole,
+  CompanyProfile,
   LocationUsersResult,
 } from "./types";
 export { createCompanyAdmin, CompanyAdminError, type CompanyAdmin, type AddUserInput } from "./companies";

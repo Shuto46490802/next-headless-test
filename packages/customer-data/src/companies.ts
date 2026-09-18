@@ -5,7 +5,20 @@ import {
   SITE_MEMBERSHIP_METAFIELD,
   type AdminApiConfig,
 } from "./admin";
-import { isSiteMembership, type CompanyRole, type LocationUser, type LocationUsersResult, type SiteMembership } from "./types";
+import {
+  isSiteMembership,
+  type CompanyRole,
+  type LocationUser,
+  type LocationUsersResult,
+  type SiteMembership,
+} from "./types";
+
+/**
+ * Company-owned metafields shown in the Users page header. Both are optional — the header
+ * simply omits the ABN / LICENSED badge when they aren't set on the company.
+ */
+export const COMPANY_ABN_METAFIELD = { namespace: "mindarc_poc", key: "abn" } as const;
+export const COMPANY_LICENCE_METAFIELD = { namespace: "mindarc_poc", key: "liquor_licence" } as const;
 
 /**
  * A company-user operation was refused for a reason the admin can act on (duplicate email,
@@ -30,6 +43,10 @@ function assertNoErrors(userErrors: BusinessUserError[], context: string) {
   }
 }
 
+/**
+ * Every contact of the company, not just those holding a role at this location — a contact
+ * with no role here is an archived user, and still has to render (greyed out, reactivatable).
+ */
 const LOCATION_USERS_QUERY = /* GraphQL */ `
   query LocationUsers($locationId: ID!) {
     companyLocation(id: $locationId) {
@@ -38,21 +55,28 @@ const LOCATION_USERS_QUERY = /* GraphQL */ `
       company {
         id
         name
-        contactRoles(first: 10) {
+        externalId
+        abn: metafield(namespace: "${COMPANY_ABN_METAFIELD.namespace}", key: "${COMPANY_ABN_METAFIELD.key}") {
+          value
+        }
+        licence: metafield(
+          namespace: "${COMPANY_LICENCE_METAFIELD.namespace}"
+          key: "${COMPANY_LICENCE_METAFIELD.key}"
+        ) {
+          value
+        }
+        defaultRole {
+          id
+          name
+        }
+        contactRoles(first: 20) {
           nodes {
             id
             name
           }
         }
-      }
-      roleAssignments(first: 100) {
-        nodes {
-          id
-          role {
-            id
-            name
-          }
-          companyContact {
+        contacts(first: 100) {
+          nodes {
             id
             isMainContact
             customer {
@@ -68,6 +92,18 @@ const LOCATION_USERS_QUERY = /* GraphQL */ `
                 key: "${LAST_LOGIN_METAFIELD.key}"
               ) {
                 value
+              }
+            }
+            roleAssignments(first: 50) {
+              nodes {
+                id
+                companyLocation {
+                  id
+                }
+                role {
+                  id
+                  name
+                }
               }
             }
           }
@@ -140,6 +176,21 @@ const CONTACT_CREATE_MUTATION = /* GraphQL */ `
   }
 `;
 
+const CONTACT_UPDATE_MUTATION = /* GraphQL */ `
+  mutation CompanyContactUpdate($companyContactId: ID!, $input: CompanyContactInput!) {
+    companyContactUpdate(companyContactId: $companyContactId, input: $input) {
+      companyContact {
+        id
+      }
+      userErrors {
+        field
+        message
+        code
+      }
+    }
+  }
+`;
+
 const ASSIGN_CUSTOMER_AS_CONTACT_MUTATION = /* GraphQL */ `
   mutation CompanyAssignCustomerAsContact($companyId: ID!, $customerId: ID!) {
     companyAssignCustomerAsContact(companyId: $companyId, customerId: $customerId) {
@@ -187,33 +238,19 @@ const REVOKE_ROLES_MUTATION = /* GraphQL */ `
   }
 `;
 
-const REMOVE_FROM_COMPANY_MUTATION = /* GraphQL */ `
-  mutation CompanyContactRemoveFromCompany($contactId: ID!) {
-    companyContactRemoveFromCompany(companyContactId: $contactId) {
-      removedCompanyContactId
-      userErrors {
-        field
-        message
-        code
-      }
-    }
-  }
-`;
-
-interface RawRoleAssignment {
+interface RawContact {
   id: string;
-  role: CompanyRole;
-  companyContact: {
+  isMainContact: boolean;
+  customer: {
     id: string;
-    isMainContact: boolean;
-    customer: {
-      id: string;
-      firstName: string | null;
-      lastName: string | null;
-      defaultEmailAddress: { emailAddress: string | null } | null;
-      state: "DECLINED" | "DISABLED" | "ENABLED" | "INVITED";
-      lastLogin: { value: string } | null;
-    };
+    firstName: string | null;
+    lastName: string | null;
+    defaultEmailAddress: { emailAddress: string | null } | null;
+    state: "DECLINED" | "DISABLED" | "ENABLED" | "INVITED";
+    lastLogin: { value: string } | null;
+  };
+  roleAssignments: {
+    nodes: { id: string; companyLocation: { id: string }; role: CompanyRole }[];
   };
 }
 
@@ -226,6 +263,20 @@ export interface AddUserInput {
   roleId: string;
   /** Site membership stamped on a brand-new customer so they can log in to this site. */
   siteMembership: SiteMembership;
+}
+
+export interface UpdateUserInput {
+  locationId: string;
+  contactId: string;
+  firstName: string;
+  lastName: string;
+  /** Omit to leave the current role untouched. */
+  roleId?: string;
+}
+
+/** Shopify returns role names like "admin" / "buyer"; the UI shows them title-cased. */
+function titleCase(value: string): string {
+  return value.replace(/\w\S*/g, (word) => word[0]!.toUpperCase() + word.slice(1).toLowerCase());
 }
 
 /**
@@ -257,43 +308,84 @@ export function createCompanyAdmin(config: AdminApiConfig) {
     assertNoErrors(data.companyContactRevokeRoles.userErrors, "Couldn't update the user's role");
   }
 
+  async function assignRole(contactId: string, roleId: string, locationId: string) {
+    const data = await adminRequest<{ companyContactAssignRole: { userErrors: BusinessUserError[] } }>(
+      config,
+      ASSIGN_ROLE_MUTATION,
+      { contactId, roleId, locationId },
+    );
+    assertNoErrors(data.companyContactAssignRole.userErrors, "Couldn't assign the role");
+  }
+
+  /** Replaces whatever role the contact holds at this location with exactly `roleId`. */
+  async function setRoleAtLocation(contactId: string, locationId: string, roleId: string) {
+    const contact = await contactRoleAssignments(contactId);
+    const here = contact.roleAssignments.nodes.filter((ra) => ra.companyLocation.id === locationId);
+    await revokeRoles(contactId, here.map((ra) => ra.id));
+    await assignRole(contactId, roleId, locationId);
+  }
+
   return {
     async getLocationUsers(locationId: string): Promise<LocationUsersResult | null> {
       const data = await adminRequest<{
         companyLocation: {
           id: string;
           name: string;
-          company: { id: string; name: string; contactRoles: { nodes: CompanyRole[] } };
-          roleAssignments: { nodes: RawRoleAssignment[] };
+          company: {
+            id: string;
+            name: string;
+            externalId: string | null;
+            abn: { value: string } | null;
+            licence: { value: string } | null;
+            defaultRole: CompanyRole | null;
+            contactRoles: { nodes: CompanyRole[] };
+            contacts: { nodes: RawContact[] };
+          };
         } | null;
       }>(config, LOCATION_USERS_QUERY, { locationId });
       const loc = data.companyLocation;
       if (!loc) return null;
+      const company = loc.company;
 
-      const users: LocationUser[] = loc.roleAssignments.nodes.map((ra) => ({
-        contactId: ra.companyContact.id,
-        customerId: ra.companyContact.customer.id,
-        firstName: ra.companyContact.customer.firstName,
-        lastName: ra.companyContact.customer.lastName,
-        email: ra.companyContact.customer.defaultEmailAddress?.emailAddress ?? null,
-        roleName: ra.role.name,
-        roleAssignmentId: ra.id,
-        isMainContact: ra.companyContact.isMainContact,
-        // New customer accounts never reach state ENABLED, so "has signed in" comes from the
-        // last_login_at metafield our callback stamps; ENABLED still counts for legacy accounts.
-        status:
-          ra.companyContact.customer.lastLogin?.value || ra.companyContact.customer.state === "ENABLED"
-            ? "active"
-            : "pending",
-      }));
-      users.sort((a, b) => (a.lastName ?? "").localeCompare(b.lastName ?? "") || (a.email ?? "").localeCompare(b.email ?? ""));
+      const users: LocationUser[] = company.contacts.nodes.map((contact) => {
+        const here = contact.roleAssignments.nodes.filter((ra) => ra.companyLocation.id === locationId);
+        const signedIn =
+          Boolean(contact.customer.lastLogin?.value) || contact.customer.state === "ENABLED";
+        return {
+          contactId: contact.id,
+          customerId: contact.customer.id,
+          firstName: contact.customer.firstName,
+          lastName: contact.customer.lastName,
+          email: contact.customer.defaultEmailAddress?.emailAddress ?? null,
+          roleId: here[0]?.role.id ?? null,
+          roleName: here[0] ? titleCase(here[0].role.name) : null,
+          roleAssignmentIds: here.map((ra) => ra.id),
+          isMainContact: contact.isMainContact,
+          status: here.length === 0 ? "deactivated" : signedIn ? "active" : "invited",
+        };
+      });
+      // Active/invited first, archived last; alphabetical within each group.
+      const rank = { active: 0, invited: 1, deactivated: 2 } as const;
+      users.sort(
+        (a, b) =>
+          rank[a.status] - rank[b.status] ||
+          (a.lastName ?? "").localeCompare(b.lastName ?? "") ||
+          (a.email ?? "").localeCompare(b.email ?? ""),
+      );
 
+      const licence = company.licence?.value?.trim().toLowerCase();
       return {
         locationId: loc.id,
         locationName: loc.name,
-        companyId: loc.company.id,
-        companyName: loc.company.name,
-        roles: loc.company.contactRoles.nodes,
+        company: {
+          id: company.id,
+          name: company.name,
+          accountNumber: company.externalId?.trim() || null,
+          abn: company.abn?.value?.trim() || null,
+          licensed: Boolean(licence) && licence !== "false" && licence !== "0",
+        },
+        roles: company.contactRoles.nodes.map((r) => ({ ...r, name: titleCase(r.name) })),
+        defaultRoleId: company.defaultRole?.id ?? null,
         users,
       };
     },
@@ -318,7 +410,8 @@ export function createCompanyAdmin(config: AdminApiConfig) {
           }[];
         };
       }>(config, CUSTOMER_BY_EMAIL_QUERY, { query: `email:${JSON.stringify(email)}` });
-      const existing = found.customers.nodes.find((c) => c.defaultEmailAddress?.emailAddress?.toLowerCase() === email) ?? null;
+      const existing =
+        found.customers.nodes.find((c) => c.defaultEmailAddress?.emailAddress?.toLowerCase() === email) ?? null;
 
       let customerId: string;
       let contactId: string;
@@ -336,7 +429,10 @@ export function createCompanyAdmin(config: AdminApiConfig) {
           contactId = contact.id;
         } else {
           const data = await adminRequest<{
-            companyAssignCustomerAsContact: { companyContact: { id: string } | null; userErrors: BusinessUserError[] };
+            companyAssignCustomerAsContact: {
+              companyContact: { id: string } | null;
+              userErrors: BusinessUserError[];
+            };
           }>(config, ASSIGN_CUSTOMER_AS_CONTACT_MUTATION, { companyId: input.companyId, customerId });
           assertNoErrors(data.companyAssignCustomerAsContact.userErrors, "Couldn't add the user to the company");
           contactId = data.companyAssignCustomerAsContact.companyContact!.id;
@@ -360,41 +456,39 @@ export function createCompanyAdmin(config: AdminApiConfig) {
         await setMetafield(config, customerId, SITE_MEMBERSHIP_METAFIELD, input.siteMembership);
       }
 
-      // 2. Exactly one role at this location: drop any existing assignment there, then assign.
-      const contact = await contactRoleAssignments(contactId);
-      const atLocation = contact.roleAssignments.nodes
-        .filter((ra) => ra.companyLocation.id === input.locationId)
-        .map((ra) => ra.id);
-      await revokeRoles(contactId, atLocation);
+      // 2. Exactly one role at this location.
+      await setRoleAtLocation(contactId, input.locationId, input.roleId);
+    },
 
-      const assigned = await adminRequest<{
-        companyContactAssignRole: { userErrors: BusinessUserError[] };
-      }>(config, ASSIGN_ROLE_MUTATION, {
-        contactId,
-        roleId: input.roleId,
-        locationId: input.locationId,
-      });
-      assertNoErrors(assigned.companyContactAssignRole.userErrors, "Couldn't assign the role");
+    /** Renames a contact and, when `roleId` is given, replaces their role at this location. */
+    async updateUser(input: UpdateUserInput): Promise<void> {
+      const data = await adminRequest<{ companyContactUpdate: { userErrors: BusinessUserError[] } }>(
+        config,
+        CONTACT_UPDATE_MUTATION,
+        {
+          companyContactId: input.contactId,
+          input: { firstName: input.firstName.trim(), lastName: input.lastName.trim() },
+        },
+      );
+      assertNoErrors(data.companyContactUpdate.userErrors, "Couldn't update the user");
+      if (input.roleId) await setRoleAtLocation(input.contactId, input.locationId, input.roleId);
     },
 
     /**
-     * Removes a contact's access to one location. If that was their only location and they
-     * aren't the company's main contact, the contact is removed from the company too. The
-     * underlying customer (and their order history) is never deleted.
+     * Archives a user: revokes their roles at this location so they can't order for it, while
+     * leaving them a contact of the company so the row stays visible and reactivatable. The
+     * customer record and their order history are untouched.
      */
-    async removeUserFromLocation(locationId: string, contactId: string): Promise<void> {
+    async archiveUser(locationId: string, contactId: string): Promise<void> {
       const contact = await contactRoleAssignments(contactId);
-      const atLocation = contact.roleAssignments.nodes.filter((ra) => ra.companyLocation.id === locationId);
-      const elsewhere = contact.roleAssignments.nodes.length - atLocation.length;
+      const here = contact.roleAssignments.nodes.filter((ra) => ra.companyLocation.id === locationId);
+      if (here.length === 0) return; // already archived
+      await revokeRoles(contactId, here.map((ra) => ra.id));
+    },
 
-      await revokeRoles(contactId, atLocation.map((ra) => ra.id));
-
-      if (elsewhere === 0 && !contact.isMainContact) {
-        const data = await adminRequest<{
-          companyContactRemoveFromCompany: { userErrors: BusinessUserError[] };
-        }>(config, REMOVE_FROM_COMPANY_MUTATION, { contactId });
-        assertNoErrors(data.companyContactRemoveFromCompany.userErrors, "Couldn't remove the user");
-      }
+    /** Restores an archived user's access by granting them a role at this location again. */
+    async reactivateUser(locationId: string, contactId: string, roleId: string): Promise<void> {
+      await setRoleAtLocation(contactId, locationId, roleId);
     },
   };
 }

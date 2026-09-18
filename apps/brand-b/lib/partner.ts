@@ -13,13 +13,13 @@ export async function getPartnerLocations(): Promise<CompanyLocationAccess[]> {
   return customerAccount.getCompanyAccess(accessToken);
 }
 
-/** Picks the requested location if the customer has access to it, else their first one. */
-export function pickLocation(
-  locations: CompanyLocationAccess[],
-  requestedId: string | undefined,
-): CompanyLocationAccess | null {
-  if (locations.length === 0) return null;
-  return locations.find((l) => l.locationId === requestedId) ?? locations[0]!;
+/**
+ * The location the Users page acts on. Companies in this POC have a single location, so the
+ * first one the customer can act for is it.
+ */
+export async function getPartnerLocation(): Promise<CompanyLocationAccess | null> {
+  const locations = await getPartnerLocations();
+  return locations[0] ?? null;
 }
 
 /**

@@ -11,7 +11,6 @@ export * from "./components/AccountNav";
 export * from "./components/EmptyState";
 export * from "./components/OrderLineItems";
 export * from "./components/AddToCartForm";
-export * from "./components/StatusBadge";
-export * from "./components/ActionForms";
+export * from "./components/PartnerUsers";
 export * from "./cart-events";
 export * from "./components/MiniCart";
