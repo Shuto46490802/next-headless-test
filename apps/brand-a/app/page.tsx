@@ -1,15 +1,33 @@
+import { draftMode } from "next/headers";
 import { Hero, ProductCard } from "@repo/ui";
 import { brand } from "../lib/brand";
 import { storefront } from "../lib/shopify";
+import { contentful, contentfulEnabled } from "../lib/contentful";
 import { getSession } from "../lib/session";
 import { getFavouriteIds } from "../lib/favorites";
+import { PageSections } from "./sections";
 
 export default async function HomePage() {
+  const { isEnabled: preview } = await draftMode();
   const collections = await storefront.listCollections(1).catch(() => []);
-  const featuredCollection = collections[0]
-    ? await storefront.getCollection(collections[0].handle, { first: 8 }).catch(() => null)
-    : null;
+  const defaultCollectionHandle = collections[0]?.handle;
+  const [session, favouriteIds] = await Promise.all([getSession(), getFavouriteIds()]);
 
+  // The homepage layout lives in Contentful: the "home" Page entry lists its sections in order.
+  const page = contentfulEnabled ? await contentful.getPage("home", { preview }).catch(() => null) : null;
+  if (page) {
+    return (
+      <PageSections
+        sections={page.sections}
+        ctx={{ isLoggedIn: Boolean(session), favouriteIds, showPoints: false, defaultCollectionHandle }}
+      />
+    );
+  }
+
+  // No Contentful page for this brand (or Contentful not configured): static fallback layout.
+  const featuredCollection = defaultCollectionHandle
+    ? await storefront.getCollection(defaultCollectionHandle, { first: 8 }).catch(() => null)
+    : null;
   const featuredTitle = featuredCollection ? featuredCollection.title : "Shop the collection";
   const featuredProducts = featuredCollection
     ? featuredCollection.products.items
@@ -18,11 +36,9 @@ export default async function HomePage() {
         .then((r) => r.items)
         .catch(() => []);
 
-  const [session, favouriteIds] = await Promise.all([getSession(), getFavouriteIds()]);
-
   return (
     <>
-      <Hero brand={brand} collectionHandle={collections[0]?.handle} />
+      <Hero brand={brand} collectionHandle={defaultCollectionHandle} />
       {featuredProducts.length > 0 ? (
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <h2 className="mb-8 text-2xl font-semibold text-neutral-900">{featuredTitle}</h2>
@@ -33,6 +49,7 @@ export default async function HomePage() {
                 product={product}
                 isLoggedIn={Boolean(session)}
                 isFavourited={favouriteIds.has(product.id)}
+                showPoints={false}
               />
             ))}
           </div>

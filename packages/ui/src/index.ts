@@ -14,3 +14,8 @@ export * from "./components/AddToCartForm";
 export * from "./components/PartnerUsers";
 export * from "./cart-events";
 export * from "./components/MiniCart";
+export * from "./components/RichText";
+export * from "./components/RichTextSection";
+export * from "./components/ProductGridSection";
+export * from "./components/PreviewBanner";
+export * from "./components/MegaMenu";

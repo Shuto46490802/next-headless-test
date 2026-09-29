@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@repo/contentful": "workspace:*",
     "@repo/customer-data": "workspace:*",
     "@repo/shopify-customer": "workspace:*",
     "@repo/shopify-storefront": "workspace:*",

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { BrandConfig } from "../types";
 import type { CartActionResult, MiniCartData } from "../cart-events";
 import { MiniCart } from "./MiniCart";
+import { MegaMenuItem, type NavItemData } from "./MegaMenu";
 
 export interface HeaderCartActions {
   updateQuantity: (lineId: string, quantity: number) => Promise<CartActionResult>;
@@ -19,30 +20,54 @@ export interface HeaderProps {
   checkoutHref?: string;
   /** Drinks Cart: enables the points summary and per-line switch in the mini cart, and the header chip. */
   points?: { enabled: boolean; balance: number | null } | null;
+  /** CMS-managed menu. When present it replaces the collection links; items with columns open a megamenu. */
+  navigation?: NavItemData[] | null;
+  /** CMS-managed strip above the header. */
+  announcement?: string | null;
 }
 
-export function Header({ brand, isLoggedIn, collections, cart, cartActions, checkoutHref, points = null }: HeaderProps) {
+export function Header({
+  brand,
+  isLoggedIn,
+  collections,
+  cart,
+  cartActions,
+  checkoutHref,
+  points = null,
+  navigation = null,
+  announcement = null,
+}: HeaderProps) {
   const pointsBalance = points?.enabled ? points.balance : null;
+  const cmsNav = navigation && navigation.length > 0 ? navigation : null;
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white/90 backdrop-blur">
+      {announcement ? (
+        <div className="bg-neutral-900 px-4 py-2 text-center text-xs font-medium text-white">{announcement}</div>
+      ) : null}
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-4 sm:px-6">
         <Link href="/" className="text-lg font-semibold tracking-tight text-neutral-900">
           {brand.name}
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm text-neutral-600 md:flex">
-          <Link href="/products" className="hover:text-neutral-900">
-            All products
-          </Link>
-          {collections.map((collection) => (
-            <Link
-              key={collection.handle}
-              href={`/collections/${collection.handle}`}
-              className="hover:text-neutral-900"
-            >
-              {collection.title}
-            </Link>
-          ))}
+          {cmsNav ? (
+            cmsNav.map((item) => <MegaMenuItem key={item.label} item={item} />)
+          ) : (
+            <>
+              <Link href="/products" className="hover:text-neutral-900">
+                All products
+              </Link>
+              {collections.map((collection) => (
+                <Link
+                  key={collection.handle}
+                  href={`/collections/${collection.handle}`}
+                  className="hover:text-neutral-900"
+                >
+                  {collection.title}
+                </Link>
+              ))}
+            </>
+          )}
         </nav>
 
         <div className="flex items-center gap-4">
