@@ -7,43 +7,32 @@ import { getSession } from "../../lib/session";
 import { getFavouriteIds } from "../../lib/favorites";
 import { getPointsContext } from "../../lib/points";
 import { PageSections } from "../sections";
+import { getSiteLogo } from "../site-settings";
 
 type Params = Promise<{ slug: string }>;
+type SearchParams = Promise<Record<string, string | undefined>>;
 
-/**
- * Any Contentful Page for this brand other than "home", e.g. /about. Static routes such as
- * /products and /collections take precedence over this catch-all.
- */
+/** Any Contentful Page for this site other than "/", e.g. /our-story. Static routes win over this catch-all. */
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const { isEnabled: preview } = await draftMode();
-  const page = contentfulEnabled ? await contentful.getPage(slug, { preview }).catch(() => null) : null;
-  return page ? { title: page.title, description: page.seoDescription ?? undefined } : {};
+  const page = contentfulEnabled ? await contentful.getPage(slug, "all", { preview }).catch(() => null) : null;
+  return page ? { title: page.seoTitle ?? page.title, description: page.seoDescription, robots: page.noIndex ? { index: false } : undefined } : {};
 }
 
-export default async function ContentPage({ params }: { params: Params }) {
+export default async function ContentPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
   const { slug } = await params;
-  if (slug === "home") notFound();
+  const sp = await searchParams;
   const { isEnabled: preview } = await draftMode();
-  const page = contentfulEnabled ? await contentful.getPage(slug, { preview }).catch(() => null) : null;
+  const session = await getSession();
+  const page = contentfulEnabled ? await contentful.getPage(slug, session ? "signedIn" : "loggedOut", { preview }).catch(() => null) : null;
   if (!page) notFound();
-
-  const [session, favouriteIds, points, collections] = await Promise.all([
-    getSession(),
-    getFavouriteIds(),
-    getPointsContext(),
-    storefront.listCollections(1).catch(() => []),
-  ]);
+  const [, favouriteIds, points, collections] = await Promise.all([getSession(), getFavouriteIds(), getPointsContext(), storefront.listCollections(1).catch(() => [])]);
 
   return (
     <PageSections
       sections={page.sections}
-      ctx={{
-        isLoggedIn: Boolean(session),
-        favouriteIds,
-        showPoints: points.enabled,
-        defaultCollectionHandle: collections[0]?.handle,
-      }}
+      ctx={{ isLoggedIn: Boolean(session), favouriteIds, showPoints: points.enabled, preview, siteLogo: await getSiteLogo(preview), searchParams: sp, defaultCollectionHandle: collections[0]?.handle }}
     />
   );
 }

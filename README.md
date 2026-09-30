@@ -55,3 +55,67 @@ Then register the resulting HTTPS URLs (see below) in the Customer Account API a
 ## Admin API / metafields
 
 `mindarc_poc.site_membership` (single line text, one of `CC` / `PC` / `DC`) and `custom.favourites` (list of product references) exist as metafield definitions on `shuto-development-store` — created via `scripts/setup-metafield-definitions.mjs`, safe to re-run (it no-ops if they already exist). `packages/customer-data` uses the real Admin API driver whenever `SHOPIFY_ADMIN_API_ACCESS_TOKEN` is set, and falls back to a cookie-backed mock driver otherwise — so the app runs end-to-end either way.
+
+## Content (Contentful)
+
+Every customer-facing word and image on the three storefronts comes from one Contentful space
+(`btqvjyd8l8lu`, "Asahi Multi-brand Test"); Shopify owns products, customers and companies. The
+model follows the Confluence pages *Contentful overview*, *Homepage and landing sections*,
+*Content page sections* and *Page types and reusable entries* in the Asahi space, consolidated to
+the free plan's 25-content-type limit (see below).
+
+### How a page renders
+
+1. Each app is one **site**: `CC` (brand-a), `PC` (brand-b), `DC` (brand-c). The code comes from
+   `siteMembership` in `lib/brand.ts`. Every Contentful query adds `fields.sites[in]=<site>`, so an
+   app can never render another site's content.
+2. `packages/contentful` reads the REST Content Delivery API with `include=6` and resolves links
+   into plain objects (`resolve.ts`). REST is used instead of GraphQL because a page with a dozen
+   polymorphic section types exceeds GraphQL's complexity limit.
+3. A **Page** entry has a `slug`, an `audience` (`loggedOut` / `signedIn` / `all`) and an ordered
+   `sections` list. `/` with audience `loggedOut` renders on `/gate` (the landing page);
+   `/` with `signedIn` is the homepage; any other slug renders through `app/[slug]/page.tsx`.
+4. `app/sections.tsx` is the **section registry**: one case per section content type, like a
+   theme's sections folder. It maps Contentful entries to the structural props of the components in
+   `packages/ui/src/cms` and fetches Shopify products for product rails.
+5. Header, megamenu, announcement bar and footer come from the site's **Site Settings** entry
+   (`app/layout.tsx`).
+
+Adding a section type = a content type in Contentful + a type in `packages/contentful/src/types.ts`
++ a component in `packages/ui/src/cms` + a case in `app/sections.tsx` + the id in
+`Page.sections` validation.
+
+### Content types (24 of 25)
+
+| Kind | Types |
+| --- | --- |
+| Page & chrome | `page`, `siteSettings`, `navigationItem`, `navigationColumn` |
+| Small shared | `link`, `cta` |
+| Sections | `heroCarousel`, `hero` (editorial hero), `ctaBand`, `mediaText` (video band / "Who backs it" / referral hero), `itemList` (12 layouts: steps, arrow list, icon row, feature columns, category tiles, timeline, stats, shortcuts, logo strip, brand directory, jurisdictions, testimonials), `productGrid` (product rail), `promoTile`, `faqAccordion`, `richTextBlock` (ruled rich text), `articleGrid`, `dataTable` |
+| Items & reusable | `heroSlide`, `navLink` (**List item**: step, iconFeature, featureColumn, categoryTile, milestone, stat, railTab, shortcut, brandGroup), `brand`, `faq`, `testimonial`, `article`, `jurisdiction` |
+
+The spec's separate item types were folded into **List item** and its list sections into
+**itemList** to fit the plan. Four ids (`hero`, `richTextBlock`, `productGrid`, `navLink`) are
+reused from an earlier draft model; their display names in Contentful are the spec names.
+
+### Environment
+
+```
+CONTENTFUL_SPACE_ID=btqvjyd8l8lu
+CONTENTFUL_ENVIRONMENT=master
+CONTENTFUL_DELIVERY_TOKEN=   # Settings > API keys
+CONTENTFUL_PREVIEW_TOKEN=    # same key, preview token
+```
+
+Same values in all three apps. Without them the pages render a static fallback.
+
+### Preview
+
+`/api/preview?slug=<slug>` turns on Next.js draft mode (requires a storefront login) and the pages
+read drafts through the Preview API; an amber banner shows with an exit link. Contentful has one
+preview environment per site (Settings > Content preview) pointing at the local ports.
+
+### Cache
+
+Fetches revalidate every 60s and are tagged `contentful`. For production, add a Contentful webhook
+to a route that calls `revalidateTag("contentful")` and raise the revalidate window.

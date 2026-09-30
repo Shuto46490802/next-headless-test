@@ -1,14 +1,27 @@
 @import "tailwindcss";
 @source "../../../packages/ui/src";
 
+/* Brand tokens. Navy / yellow / light-blue for Club Connect and Partner Connect; black / orange for Drinks Cart. */
 :root {
-  --brand-color: #d97706;
-  --brand-color-fg: #ffffff;
+  --brand-color: #1B3F94;
+  --brand-color-fg: #FFFFFF;
+  --accent-color: #FFC72C;
+  --accent-color-fg: #1B3F94;
+  --brand-tint: #DDF0FB;
+  --brand-sky: #7EC8F5;
+  --brand-dark: #0F2A6B;
 }
 
 @theme {
   --color-brand: var(--brand-color);
   --color-brand-fg: var(--brand-color-fg);
+  --color-accent: var(--accent-color);
+  --color-accent-fg: var(--accent-color-fg);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-sky: var(--brand-sky);
+  --color-brand-dark: var(--brand-dark);
+  --font-heading: var(--font-heading), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-sans), system-ui, sans-serif;
 }
 
 body {

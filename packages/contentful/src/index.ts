@@ -1,118 +1,57 @@
 import { createContentfulClient, type ContentfulConfig, type RequestOptions } from "./client";
-import { BRAND_QUERY, PAGE_QUERY, SITE_SETTINGS_QUERY } from "./queries";
-import type {
-  Brand,
-  ContentfulImage,
-  NavLink,
-  NavigationColumn,
-  NavigationItem,
-  Page,
-  PageSection,
-  SiteSettings,
-} from "./types";
+import { resolveCollection } from "./resolve";
+import type { Article, Audience, Page, SiteSettings } from "./types";
 
 export * from "./types";
-export { ContentfulApiError, type ContentfulConfig, type RequestOptions } from "./client";
-
-interface RawPage extends Omit<Page, "sections"> {
-  sectionsCollection: { items: (PageSection | null)[] };
-}
-
-type Items<T> = { items: (T | null)[] };
-interface RawNavColumn {
-  heading: string;
-  linksCollection: Items<NavLink>;
-}
-interface RawNavItem {
-  label: string;
-  url: string | null;
-  promoHeading: string | null;
-  promoUrl: string | null;
-  promoImage: ContentfulImage | null;
-  columnsCollection: Items<RawNavColumn>;
-}
-interface RawSiteSettings {
-  announcementBar: string | null;
-  footerText: string | null;
-  headerNavigationCollection: Items<RawNavItem>;
-  footerColumnsCollection: Items<RawNavColumn>;
-  socialLinksCollection: Items<NavLink>;
-}
-
-/** Unpublished references come back as null from the Delivery API; drop them. */
-function present<T>(items: (T | null)[]): T[] {
-  return items.filter((i): i is T => i !== null);
-}
-
-function mapColumn(raw: RawNavColumn): NavigationColumn {
-  return { heading: raw.heading, links: present(raw.linksCollection.items) };
-}
-
-function mapNavItem(raw: RawNavItem): NavigationItem {
-  const hasPromo = Boolean(raw.promoHeading || raw.promoImage);
-  return {
-    label: raw.label,
-    url: raw.url,
-    columns: present(raw.columnsCollection.items).map(mapColumn),
-    promo: hasPromo ? { heading: raw.promoHeading, url: raw.promoUrl, image: raw.promoImage } : null,
-  };
-}
+export * from "./links";
+export { ContentfulApiError, type ContentfulConfig, type RequestOptions, type SiteCode as ClientSiteCode } from "./client";
 
 export function createContentful(config: ContentfulConfig) {
   const client = createContentfulClient(config);
-  const brand = config.brandSlug;
 
   return {
     client,
+    site: config.site,
 
     /**
-     * A page by slug, scoped to this brand. `"home"` is the homepage. Null when the brand has
-     * no such page, so callers can fall back to a static layout. Unpublished sections come back
-     * as null from the Delivery API and are dropped.
+     * A page by slug for this site. "/" is the homepage. When `audience` is given, an entry for
+     * that audience wins over an `all` entry (the spec has two "/" pages: loggedOut and signedIn).
+     * Null when nothing matches, so callers can fall back to a static layout.
      */
-    async getPage(slug: string, opts?: RequestOptions): Promise<Page | null> {
-      const data = await client.request<{ pageCollection: { items: (RawPage | null)[] } }>(
-        PAGE_QUERY,
-        { brand, slug },
+    async getPage(slug: string, audience: Audience = "all", opts?: RequestOptions): Promise<Page | null> {
+      const col = await client.getEntries(
+        { content_type: "page", "fields.slug": slug || "/", "fields.audience[in]": audience === "all" ? "all" : `${audience},all`, limit: 5, include: 6 },
         opts,
       );
-      const raw = data.pageCollection.items[0];
-      if (!raw) return null;
-      const { sectionsCollection, ...rest } = raw;
-      return {
-        ...rest,
-        sections: sectionsCollection.items.filter((s): s is PageSection => s !== null),
-      };
+      const pages = resolveCollection<Page>(col);
+      return pages.find((p) => p.audience === audience) ?? pages.find((p) => p.audience === "all") ?? pages[0] ?? null;
     },
 
-    /**
-     * Announcement bar, header navigation and footer for this brand. Null when no Site Settings
-     * entry exists, so the layout can fall back to the collection-based nav.
-     */
+    /** Announcement bar, header navigation, footer and SEO defaults for this site. */
     async getSiteSettings(opts?: RequestOptions): Promise<SiteSettings | null> {
-      const data = await client.request<{ siteSettingsCollection: Items<RawSiteSettings> }>(
-        SITE_SETTINGS_QUERY,
-        { brand },
-        opts,
-      );
-      const raw = data.siteSettingsCollection.items[0];
-      if (!raw) return null;
-      return {
-        announcementBar: raw.announcementBar,
-        footerText: raw.footerText,
-        headerNavigation: present(raw.headerNavigationCollection.items).map(mapNavItem),
-        footerColumns: present(raw.footerColumnsCollection.items).map(mapColumn),
-        socialLinks: present(raw.socialLinksCollection.items),
-      };
+      const col = await client.getEntries({ content_type: "siteSettings", limit: 1, include: 5 }, opts);
+      return resolveCollection<SiteSettings>(col)[0] ?? null;
     },
 
-    async getBrand(opts?: RequestOptions): Promise<Brand | null> {
-      const data = await client.request<{ brandCollection: { items: (Brand | null)[] } }>(
-        BRAND_QUERY,
-        { brand },
+    /** Articles for this site, newest first, optionally filtered by category. */
+    async getArticles(params: { category?: string; limit?: number; skip?: number } = {}, opts?: RequestOptions): Promise<{ items: Article[]; total: number }> {
+      const col = await client.getEntries(
+        {
+          content_type: "article",
+          order: "-sys.createdAt",
+          limit: params.limit ?? 8,
+          skip: params.skip ?? 0,
+          include: 1,
+          "fields.category": params.category && params.category !== "All" ? params.category : undefined,
+        },
         opts,
       );
-      return data.brandCollection.items[0] ?? null;
+      return { items: resolveCollection<Article>(col), total: col.total };
+    },
+
+    async getArticle(slug: string, opts?: RequestOptions): Promise<Article | null> {
+      const col = await client.getEntries({ content_type: "article", "fields.slug": slug, limit: 1, include: 2 }, opts);
+      return resolveCollection<Article>(col)[0] ?? null;
     },
   };
 }
