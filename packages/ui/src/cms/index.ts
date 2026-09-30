@@ -9,4 +9,5 @@ export * from "./misc";
 export * from "./ProductRail";
 export * from "./mappers";
 export * from "./LivePreview";
+export * from "./inspector";
 export * from "./ArticleView";

@@ -4,7 +4,7 @@ import { ArticleGrid, Band, CtaBand, DataTable, EditorialHero, FaqAccordion, Her
 import { toArticleCard, toCtaBand, toCtas, toEditorialHero, toFaqAccordion, toHeroSlides, toItemList, toMediaText, toProductRailStatic, toPromoTile } from "../cms/mappers";
 import type { CmsImage } from "../cms/primitives";
 import { mockProducts } from "./mocks";
-import { InspectorTag, inspectorFieldFor } from "../cms/LivePreview";
+import { InspectorTag, inspectorFieldFor } from "../cms/inspector";
 
 export interface StoryCtx { isLoggedIn: boolean; siteLogo?: CmsImage | null; articles?: Article[] }
 
