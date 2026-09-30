@@ -1,13 +1,16 @@
-import { createContentfulClient, type ContentfulConfig, type RequestOptions } from "./client";
+import { createContentfulClient, type ContentfulClient, type ContentfulConfig, type RequestOptions } from "./client";
+import { createFixtureClient, type SpaceFixture } from "./fixture";
 import { resolveCollection } from "./resolve";
 import type { Article, Audience, Page, SiteSettings } from "./types";
 
 export * from "./types";
 export * from "./links";
+export { createFixtureClient, type SpaceFixture } from "./fixture";
+export { resolveCollection } from "./resolve";
 export { ContentfulApiError, type ContentfulConfig, type RequestOptions, type SiteCode as ClientSiteCode } from "./client";
 
-export function createContentful(config: ContentfulConfig) {
-  const client = createContentfulClient(config);
+export function createContentful(config: ContentfulConfig, clientOverride?: ContentfulClient) {
+  const client = clientOverride ?? createContentfulClient(config);
 
   return {
     client,
@@ -57,3 +60,8 @@ export function createContentful(config: ContentfulConfig) {
 }
 
 export type Contentful = ReturnType<typeof createContentful>;
+
+/** The same API, answered from an exported snapshot (see `fixtures/space.json`). */
+export function createContentfulFromFixture(fixture: SpaceFixture, site: ContentfulConfig["site"]) {
+  return createContentful({ spaceId: fixture.space, environment: fixture.environment, deliveryToken: "", site }, createFixtureClient(fixture, { site }));
+}

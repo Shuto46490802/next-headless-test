@@ -1,0 +1,25 @@
+@import "tailwindcss";
+@source "../src";
+
+/* Brand tokens per site. Mirrors apps/<app>/app/globals.css. The site toolbar sets data-site on the story wrapper. */
+:root, [data-site="CC"], [data-site="PC"] {
+  --brand-color: #1B3F94; --brand-color-fg: #FFFFFF; --accent-color: #FFC72C; --accent-color-fg: #1B3F94;
+  --brand-tint: #DDF0FB; --brand-sky: #7EC8F5; --brand-dark: #0F2A6B;
+}
+[data-site="DC"] {
+  --brand-color: #161616; --brand-color-fg: #FFFFFF; --accent-color: #F26B1D; --accent-color-fg: #161616;
+  --brand-tint: #FDEBDD; --brand-sky: #F7B58A; --brand-dark: #000000;
+}
+/* `inline` so utilities read the wrapper's --brand-* tokens (set per data-site), not the root's. */
+@theme inline {
+  --color-brand: var(--brand-color);
+  --color-brand-fg: var(--brand-color-fg);
+  --color-accent: var(--accent-color);
+  --color-accent-fg: var(--accent-color-fg);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-sky: var(--brand-sky);
+  --color-brand-dark: var(--brand-dark);
+  --font-heading: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+}
+body { font-family: var(--font-sans); color: #171717; background: #fff; }

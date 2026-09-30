@@ -9,3 +9,5 @@ dist
 .vercel
 *.tsbuildinfo
 .DS_Store
+
+storybook-static

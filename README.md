@@ -109,13 +109,50 @@ CONTENTFUL_PREVIEW_TOKEN=    # same key, preview token
 
 Same values in all three apps. Without them the pages render a static fallback.
 
-### Preview
+### Live preview for editors (Contentful)
 
-`/api/preview?slug=<slug>` turns on Next.js draft mode (requires a storefront login) and the pages
-read drafts through the Preview API; an amber banner shows with an exit link. Contentful has one
-preview environment per site (Settings > Content preview) pointing at the local ports.
+Editors get a theme-editor-style experience inside Contentful: open any Page, Site Settings,
+section or Article entry and the **Preview** pane on the right renders the storefront with the
+draft content, refreshing as they type and before anything is published. Clicking a band in the
+pane jumps to that entry (inspector mode).
+
+- Route: `app/(preview)/preview/page.tsx`, framed by Contentful. It cannot rely on a storefront
+  login or cookies, so a shared secret in the URL gates it and every read uses the Preview API.
+  `?slug=/&audience=signedIn` renders the home, `audience=loggedOut` the landing,
+  `?type=article&slug=…` an article.
+- `LivePreviewBridge` (`@contentful/live-preview`) enables inspector mode and re-renders on each
+  editor change; Contentful autosaves drafts, so the refresh shows them within about a second.
+- Set `CONTENTFUL_PREVIEW_SECRET` in each app to the secret in the preview URLs (Contentful
+  **Settings > Content preview**, one platform per site). Turn on **Live preview** for each
+  platform there. For Vercel, change the platform URLs from localhost to the deployed domains.
+- The older `/api/preview` route (Next draft mode after a storefront login) still exists for
+  previewing with a real session.
 
 ### Cache
 
 Fetches revalidate every 60s and are tagged `contentful`. For production, add a Contentful webhook
 to a route that calls `revalidateTag("contentful")` and raise the revalidate window.
+
+### Storybook (visual reference from the Contentful config)
+
+```
+pnpm --filter @repo/ui storybook        # http://localhost:6006
+pnpm --filter @repo/ui build-storybook  # static build in packages/ui/storybook-static
+```
+
+Stories under **CMS** render real Contentful entries through the same mappers the apps use
+(`packages/ui/src/cms/mappers.ts`), so a story shows a band exactly as the storefront does. The
+toolbar switches **Site** (CC / PC / DC brand tokens and content) and **Audience** (logged-out
+landing vs signed-in home).
+
+- **CMS/Sections**: every configured instance of a section type for the site, one story per type
+  and per `itemList` layout / `mediaText` variant, each captioned with its entry id.
+- **CMS/Pages**: whole pages (header, sections in Page order, footer) for `/`, our-story, faqs,
+  brands, community, liquor-licences, shipping-delivery.
+- **CMS/Primitives**: buttons, heading group, icon set.
+
+Content source: the live Delivery API when these are set in `packages/ui/.env`
+(`STORYBOOK_CONTENTFUL_SPACE_ID`, `STORYBOOK_CONTENTFUL_DELIVERY_TOKEN`, optional
+`STORYBOOK_CONTENTFUL_ENVIRONMENT` and `STORYBOOK_CONTENTFUL_PREVIEW_TOKEN`), otherwise the
+snapshot in `packages/contentful/fixtures/space.json`. Refresh the snapshot by re-exporting the
+published entries and assets with fields de-localised. Shopify products are mocked in Storybook.

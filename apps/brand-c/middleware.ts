@@ -54,5 +54,5 @@ export const config = {
   // Everything requires a session except: the gate/access-denied pages themselves
   // (or this would redirect-loop), all /api routes (they do their own auth checks and
   // must return JSON/redirects to Shopify, not an HTML gate page), and Next internals.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api|gate|access-denied).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api|gate|access-denied|preview).*)"],
 };
