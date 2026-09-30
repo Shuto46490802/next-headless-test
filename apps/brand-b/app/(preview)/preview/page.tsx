@@ -17,6 +17,8 @@ export const dynamic = "force-dynamic";
  *
  *   /preview?secret=…&slug=/&audience=signedIn        a page (slug "/" is the home / landing)
  *   /preview?secret=…&type=article&slug=story-1       an article
+ *   /preview?secret=…&entry=<id>                      whatever page contains that entry (a CTA,
+ *                                                     slide, section…), scrolled to its band
  */
 export default async function PreviewPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -29,7 +31,22 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
   const [settings, collections] = await Promise.all([getSiteSettings(true), storefront.listCollections(1).catch(() => [])]);
 
   let body: React.ReactNode;
-  if (sp.type === "article") {
+  let focus: string | null = null;
+  if (sp.entry) {
+    const hit = await contentful.findPageForEntry(sp.entry, { preview: true }).catch(() => null);
+    if (hit) {
+      focus = hit.sectionId;
+      const pageAudience = hit.page.audience === "loggedOut" ? "loggedOut" : "signedIn";
+      body = (
+        <PageSections
+          sections={hit.page.sections}
+          ctx={{ isLoggedIn: pageAudience === "signedIn", favouriteIds: new Set(), showPoints: false, preview: true, siteLogo: settings?.logo ?? null, searchParams: sp, defaultCollectionHandle: collections[0]?.handle }}
+        />
+      );
+    } else {
+      body = <Missing what={`page on this site containing entry ${sp.entry}`} />;
+    }
+  } else if (sp.type === "article") {
     const a = await contentful.getArticle(slug, { preview: true }).catch(() => null);
     body = a ? <ArticleView {...a} heroImage={a.heroImage ?? null} body={a.body ?? null} /> : <Missing what={`article "${slug}"`} />;
   } else {
@@ -46,7 +63,7 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <LivePreviewBridge />
+      <LivePreviewBridge focusEntryId={focus} />
       <div className="bg-amber-400 px-4 py-1.5 text-center text-xs font-medium text-amber-950">Contentful preview · draft content · {audience === "signedIn" ? "signed-in view" : "logged-out view"}</div>
       <SiteHeader
         brand={brand}

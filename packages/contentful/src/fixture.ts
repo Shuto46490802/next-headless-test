@@ -24,6 +24,7 @@ export function createFixtureClient(fixture: SpaceFixture, config: Pick<Contentf
       if (raw === undefined) continue;
       const v = String(raw);
       if (k === "content_type") { if (e.sys.contentType.sys.id !== v) return false; continue; }
+      if (k === "links_to_entry") { if (!JSON.stringify(e.fields).includes(`"id":"${v}"`)) return false; continue; }
       if (k === "limit" || k === "skip" || k === "include" || k === "locale" || k === "order") continue;
       const m = /^fields\.(\w+)(\[in\])?$/.exec(k);
       if (!m) continue;

@@ -52,6 +52,34 @@ export function createContentful(config: ContentfulConfig, clientOverride?: Cont
       return { items: resolveCollection<Article>(col), total: col.total };
     },
 
+    /**
+     * The page on this site that contains an entry, walking up the reference graph (a CTA sits in
+     * a slide, in a carousel, in a page). Used by Live Preview so editing any nested entry shows
+     * the page it appears on. Returns the page plus the id of the top-level section holding it.
+     */
+    async findPageForEntry(entryId: string, opts?: RequestOptions): Promise<{ page: Page; sectionId: string | null } | null> {
+      const seen = new Set<string>([entryId]);
+      let frontier: { id: string; topSection: string | null }[] = [{ id: entryId, topSection: null }];
+      for (let hop = 0; hop < 4 && frontier.length > 0; hop++) {
+        const next: typeof frontier = [];
+        for (const { id, topSection } of frontier.slice(0, 8)) {
+          const col = await client.getEntries({ links_to_entry: id, include: 0, limit: 25 }, opts);
+          for (const parent of col.items) {
+            const ct = parent.sys.contentType.sys.id;
+            if (ct === "page") {
+              const page = await this.getPage(String(parent.fields.slug ?? "/"), (parent.fields.audience as Audience) ?? "all", opts);
+              if (page) return { page, sectionId: topSection ?? id };
+            } else if (!seen.has(parent.sys.id)) {
+              seen.add(parent.sys.id);
+              next.push({ id: parent.sys.id, topSection: parent.sys.id });
+            }
+          }
+        }
+        frontier = next;
+      }
+      return null;
+    },
+
     async getArticle(slug: string, opts?: RequestOptions): Promise<Article | null> {
       const col = await client.getEntries({ content_type: "article", "fields.slug": slug, limit: 1, include: 2 }, opts);
       return resolveCollection<Article>(col)[0] ?? null;

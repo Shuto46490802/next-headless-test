@@ -10,8 +10,18 @@ import { ContentfulLivePreview } from "@contentful/live-preview";
  * drafts continuously and posts a message to the iframe, so a debounced server refresh through the
  * Preview API shows the change within about a second, before anything is published.
  */
-export function LivePreviewBridge({ locale = "en-US" }: { locale?: string }) {
+export function LivePreviewBridge({ locale = "en-US", focusEntryId }: { locale?: string; focusEntryId?: string | null }) {
   const router = useRouter();
+  useEffect(() => {
+    if (!focusEntryId) return;
+    const el = document.querySelector<HTMLElement>(`[data-contentful-entry-id="${focusEntryId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: "start" });
+    el.style.outline = "3px solid #FFC72C";
+    el.style.outlineOffset = "-3px";
+    const t = setTimeout(() => { el.style.outline = ""; el.style.outlineOffset = ""; }, 2500);
+    return () => clearTimeout(t);
+  }, [focusEntryId]);
   useEffect(() => {
     if (window.self === window.top) return; // not framed by Contentful: nothing to do
     void Promise.resolve(ContentfulLivePreview.init({ locale, enableInspectorMode: true, enableLiveUpdates: false, debugMode: false })).catch(() => undefined);
