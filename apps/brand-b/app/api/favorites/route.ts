@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ShoppingListError } from "@repo/customer-data";
 import { getSession } from "../../../lib/session";
-import { customerData } from "../../../lib/shopify";
+import { setFavourite } from "../../../lib/favorites";
 
+/** Heart button: adds to or removes from the club's "Favourites" shopping list. */
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) {
@@ -15,12 +17,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const current = await customerData.getFavourites(session.customerId);
-  const next =
-    action === "add"
-      ? Array.from(new Set([...current, productId]))
-      : current.filter((id) => id !== productId);
-
-  await customerData.setFavourites(session.customerId, next);
-  return NextResponse.json({ favourites: next });
+  try {
+    const favourites = await setFavourite([productId], action);
+    return NextResponse.json({ favourites });
+  } catch (err) {
+    console.error("Favourite toggle failed", err);
+    const message = err instanceof ShoppingListError ? err.message : "Couldn't update favourites";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

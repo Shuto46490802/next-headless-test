@@ -1,4 +1,4 @@
-import { requireSession } from "./session";
+import { getSession, requireSession } from "./session";
 import { getAccountOverview } from "./account";
 
 /**
@@ -8,6 +8,14 @@ import { getAccountOverview } from "./account";
  */
 export async function getListOwner(): Promise<{ ownerId: string; customerId: string; shared: boolean }> {
   const session = await requireSession();
+  const company = (await getAccountOverview())?.company;
+  return company ? { ownerId: company.id, customerId: session.customerId, shared: true } : { ownerId: session.customerId, customerId: session.customerId, shared: false };
+}
+
+/** Same as getListOwner for pages that also render signed out: null instead of redirecting. */
+export async function findListOwner(): Promise<{ ownerId: string; customerId: string; shared: boolean } | null> {
+  const session = await getSession();
+  if (!session) return null;
   const company = (await getAccountOverview())?.company;
   return company ? { ownerId: company.id, customerId: session.customerId, shared: true } : { ownerId: session.customerId, customerId: session.customerId, shared: false };
 }

@@ -1,28 +1,10 @@
-import { ProductCard, EmptyState } from "@repo/ui";
-import { requireSession } from "../../../../lib/session";
-import { customerData, storefront } from "../../../../lib/shopify";
-import { getBuyer } from "../../../../lib/listing";
+import { redirect } from "next/navigation";
+import { getListOwner, listSlug } from "../../../../lib/lists";
+import { findFavouritesList } from "../../../../lib/favorites";
 
+/** Header "Favourites" link: opens the club's Favourites list, or Shopping lists if nothing is hearted yet. */
 export default async function FavoritesPage() {
-  const session = await requireSession();
-  const favouriteIds = await customerData.getFavourites(session.customerId);
-  const products = await storefront.getProductsByIds(favouriteIds, await getBuyer());
-
-  return (
-    <div>
-      <h2 className="mb-6 font-heading text-3xl font-bold text-brand">Shopping lists</h2>
-      {products.length === 0 ? (
-        <EmptyState
-          title="No saved products yet"
-          description="Tap the heart on any product to save it here."
-        />
-      ) : (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} isLoggedIn isFavourited />
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  const { ownerId } = await getListOwner();
+  const list = await findFavouritesList(ownerId).catch(() => null);
+  redirect(list ? `/account/lists/${listSlug(list.id)}` : "/account/lists");
 }
