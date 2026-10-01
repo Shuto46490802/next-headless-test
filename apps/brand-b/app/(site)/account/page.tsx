@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
-import { AccountButton, AccountCard, CreditSummary, MetricTile, OrdersTable, UserPreviewRows, orderStatus, shortDate } from "@repo/ui";
+import { AccountButton, AccountCard, CreditSummary, MetricTile, OrdersTable, ShoppingListCard, UserPreviewRows, orderStatus, shortDate } from "@repo/ui";
 import { getValidAccessToken, requireSession } from "../../../lib/session";
-import { companyAdmin, customerAccount } from "../../../lib/shopify";
+import { companyAdmin, customerAccount, shoppingLists } from "../../../lib/shopify";
+import { getListOwner } from "../../../lib/lists";
+import { summariseLists } from "../../../lib/list-summaries";
+import { SHOW_CREDIT } from "../../../lib/listing";
+import { addListToCartAction } from "../../list-actions";
 import { ACCOUNT_COPY, getAccountOverview } from "../../../lib/account";
 import { reorderOrder } from "../../account-actions";
 
@@ -14,9 +18,11 @@ export default async function AccountDashboard() {
   const account = await getAccountOverview();
   const company = account?.company ?? null;
 
-  const [ordersResult, usersResult] = await Promise.all([
+  const { ownerId } = await getListOwner();
+  const [ordersResult, usersResult, lists] = await Promise.all([
     customerAccount.listAccountOrders(token, { scope: "company", locationId: company?.location?.id, first: 10 }).catch(() => null),
     company?.location && companyAdmin ? companyAdmin.getLocationUsers(company.location.id).catch(() => null) : null,
+    shoppingLists.getLists(ownerId).then((l) => summariseLists(l.slice(0, 2))).catch(() => []),
   ]);
   const orders = ordersResult?.orders ?? [];
   const open = orders.filter((o) => {
@@ -45,8 +51,12 @@ export default async function AccountDashboard() {
         <OrdersTable orders={orders.slice(0, 3)} onReorder={reorderOrder} />
       </AccountCard>
 
+      <div className="grid gap-6 lg:grid-cols-2">
+      <AccountCard title="Shopping lists" action={<AccountButton href="/account/lists">Manage lists</AccountButton>}>
+        {lists.length ? lists.map((l) => <ShoppingListCard key={l.id} list={l} onAddAll={addListToCartAction} showCredit={SHOW_CREDIT} />) : <p className="text-sm text-neutral-500">No lists yet.</p>}
+      </AccountCard>
       {usersResult ? (
-        <AccountCard title={`${ACCOUNT_COPY.org} users`} action={<AccountButton href="/account/users">Manage users</AccountButton>} className="lg:max-w-[50%]">
+        <AccountCard title={`${ACCOUNT_COPY.org} users`} action={<AccountButton href="/account/users">Manage users</AccountButton>}>
           <UserPreviewRows
             users={usersResult.users.slice(0, 4).map((u) => ({
               id: u.contactId,
@@ -58,6 +68,7 @@ export default async function AccountDashboard() {
           />
         </AccountCard>
       ) : null}
+      </div>
     </div>
   );
 }

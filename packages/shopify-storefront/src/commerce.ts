@@ -6,6 +6,7 @@ import {
   PRODUCT_PAGE_QUERY,
   PRODUCT_RECOMMENDATIONS_QUERY,
   SEARCH_COUNT_QUERY,
+  TILES_BY_IDS_QUERY,
   SEARCH_PRODUCTS_QUERY,
 } from "./commerce-queries";
 import type { ImageNode, Money } from "./types";
@@ -364,6 +365,17 @@ export function createCommerceQueries(client: StorefrontClient) {
     async getProductRecommendations(productId: string, limit = 4, buyer?: BuyerInput | null): Promise<TileProduct[]> {
       const data = await client.request<{ productRecommendations: RawTile[] | null }>(PRODUCT_RECOMMENDATIONS_QUERY, { productId, buyer: buyer ?? null });
       return (data.productRecommendations ?? []).slice(0, limit).map(mapTile);
+    },
+
+    /** Tiles in the order of `ids`; deleted or unpublished products are dropped. */
+    async getTilesByIds(ids: string[], buyer?: BuyerInput | null): Promise<TileProduct[]> {
+      if (ids.length === 0) return [];
+      const out: TileProduct[] = [];
+      for (let i = 0; i < ids.length; i += 100) {
+        const data = await client.request<{ nodes: (RawTile | Record<string, never> | null)[] }>(TILES_BY_IDS_QUERY, { ids: ids.slice(i, i + 100), buyer: buyer ?? null });
+        for (const n of data.nodes) if (n && "id" in n) out.push(mapTile(n as RawTile));
+      }
+      return out;
     },
 
     async getPopularProducts(first = 4, buyer?: BuyerInput | null): Promise<TileProduct[]> {

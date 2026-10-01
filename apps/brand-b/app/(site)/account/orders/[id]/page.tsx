@@ -4,7 +4,8 @@ import { OrderDetailView } from "@repo/ui";
 import { getValidAccessToken, requireSession } from "../../../../../lib/session";
 import { customerAccount, storefront } from "../../../../../lib/shopify";
 import { SHOW_CREDIT } from "../../../../../lib/listing";
-import { addOrderToFavourites, reorderLines } from "../../../../account-actions";
+import { reorderLines } from "../../../../account-actions";
+import { addToListAction, createListAction, loadListsFor } from "../../../../list-actions";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -37,7 +38,7 @@ export default async function OrderDetailPage({ params }: Props) {
       }}
       showCredit={SHOW_CREDIT}
       onReorder={reorderLines}
-      onAddToFavourites={addOrderToFavourites}
+      listActions={{ load: loadListsFor, add: addToListAction, create: createListAction }}
       reportHref={`/contact?order=${encodeURIComponent(order.name)}`}
     />
   );

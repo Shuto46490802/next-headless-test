@@ -6,6 +6,7 @@ import { formatMoney } from "../format";
 import { announceCart, type MiniCartData } from "../cart-events";
 import { AccountButton } from "./AccountShell";
 import { StatusBadge } from "./Orders";
+import { AddToListButton, type AddToListActions } from "./ShoppingLists";
 import { STATUS_TONE_CLASS, TIMELINE_STEPS, dateTime, longDate, orderNumber, orderStatus, shipmentStep } from "./format";
 import type { AccountFulfillmentData, AccountMoney, AccountOrderRowData } from "./types";
 
@@ -107,12 +108,15 @@ export function OrderDetailView({
   showCredit = false,
   onReorder,
   onAddToFavourites,
+  listActions = null,
   reportHref,
 }: {
   order: AccountOrderDetailData;
   showCredit?: boolean;
   onReorder?: ReorderLinesAction;
   onAddToFavourites?: (productIds: string[]) => Promise<void>;
+  /** "Add to list" for the ticked lines (or all), replacing Add to favourites. */
+  listActions?: AddToListActions | null;
   reportHref?: string;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -216,7 +220,16 @@ export function OrderDetailView({
           </ul>
           <div className="flex flex-wrap gap-3">
             {onReorder ? <AccountButton variant="primary" onClick={reorder} disabled={busy !== null}>{busy === "reorder" ? "Adding…" : selected.size ? `Reorder ${selected.size} selected` : "Reorder"}</AccountButton> : null}
-            {onAddToFavourites ? <AccountButton onClick={favourite} disabled={busy !== null}>{busy === "fav" ? "Saving…" : "Add to favourites"}</AccountButton> : null}
+            {listActions ? (
+              <AddToListButton
+                productIds={[...new Set(chosen.map((l) => l.productId).filter((id): id is string => Boolean(id)))]}
+                actions={listActions}
+                label={selected.size ? `Add ${selected.size} selected to list` : "Add to list"}
+                className="self-center"
+              />
+            ) : onAddToFavourites ? (
+              <AccountButton onClick={favourite} disabled={busy !== null}>{busy === "fav" ? "Saving…" : "Add to favourites"}</AccountButton>
+            ) : null}
           </div>
         </section>
 

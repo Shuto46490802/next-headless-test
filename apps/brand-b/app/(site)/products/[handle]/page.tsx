@@ -6,6 +6,7 @@ import { getSession } from "../../../../lib/session";
 import { getFavouriteIds } from "../../../../lib/favorites";
 import { SHOW_CREDIT, getBuyer } from "../../../../lib/listing";
 import { addToCartAction } from "../../../product-actions";
+import { addToListAction, createListAction, loadListsFor } from "../../../list-actions";
 import { getDeliveryState, stateName } from "../../../../lib/location";
 import { availableInState } from "@repo/shopify-storefront";
 
@@ -73,6 +74,7 @@ export default async function ProductPage({ params }: Props) {
         isFavourited={favouriteIds.has(product.id)}
         showCredit={SHOW_CREDIT}
         unavailableMessage={unavailableMessage}
+        listActions={isLoggedIn ? { load: loadListsFor, add: addToListAction, create: createListAction } : null}
       />
       <ProductAbout html={product.descriptionHtml} />
       <SpecGrid

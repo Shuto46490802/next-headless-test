@@ -23,6 +23,16 @@ export {
   type AdminApiConfig,
 } from "./admin";
 export { createMockDriver } from "./mock";
+export {
+  createShoppingListStore,
+  createAdminShoppingListStore,
+  createMockShoppingListStore,
+  ShoppingListError,
+  SHOPPING_LISTS_METAFIELD,
+  SHOPPING_LIST_MAX_PRODUCTS,
+  type ShoppingList,
+  type ShoppingListStore,
+} from "./shopping-lists";
 
 export interface CustomerDataStoreConfig {
   storeDomain: string;

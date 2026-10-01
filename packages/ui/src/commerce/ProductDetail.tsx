@@ -8,6 +8,7 @@ import { FavoriteButton } from "../components/FavoriteButton";
 import { QuantityStepper } from "./QuantityStepper";
 import { perUnitLabel, savingLabel } from "./format";
 import type { AddToCartAction, MoneyData, TileVariantData } from "./types";
+import { AddToListButton, type AddToListActions } from "../account/ShoppingLists";
 
 export interface ProductDetailVariant extends TileVariantData {
   image: { url: string; altText: string | null } | null;
@@ -40,6 +41,8 @@ export interface ProductDetailProps {
   creditLabel?: string;
   /** Set when the product can't be bought here (e.g. "Not available in Victoria"); disables add to cart. */
   unavailableMessage?: string | null;
+  /** Club Connect / Partner Connect: "Add to list" under the buy row. */
+  listActions?: AddToListActions | null;
 }
 
 /** Shopify gives single-variant products a "Title: Default Title" option; it isn't a real choice. */
@@ -49,7 +52,7 @@ const realOptions = (options: ProductDetailData["options"]) => options.filter((o
  * Figma PDP top section: thumbnail rail + hero frame on the left, the buy panel card on the right,
  * and a sticky buy bar that slides in once the panel's add button scrolls out of view.
  */
-export function ProductDetail({ product, onAddToCart, isLoggedIn, isFavourited, showCredit = true, creditLabel = "for your club", unavailableMessage = null }: ProductDetailProps) {
+export function ProductDetail({ product, onAddToCart, isLoggedIn, isFavourited, showCredit = true, creditLabel = "for your club", unavailableMessage = null, listActions = null }: ProductDetailProps) {
   const options = realOptions(product.options);
   const [selected, setSelected] = useState<Record<string, string>>(() => {
     const first = product.variants.find((v) => v.availableForSale) ?? product.variants[0];
@@ -215,6 +218,7 @@ export function ProductDetail({ product, onAddToCart, isLoggedIn, isFavourited, 
             </div>
           </div>
           {message ? <p role="alert" className="text-sm text-red-700">{message}</p> : null}
+          {listActions ? <AddToListButton productIds={[product.id]} actions={listActions} /> : null}
         </div>
       </section>
 

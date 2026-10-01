@@ -20,7 +20,7 @@ export const ACCOUNT_GROUPS: AccountNavGroup[] = [
       { href: "/account", label: "Dashboard", icon: "dashboard" },
       { href: "/account/orders", label: "Orders & invoices", icon: "orders" },
       { href: "/account/credit", label: "Credit history", icon: "credit" },
-      { href: "/account/favorites", label: "Shopping lists", icon: "lists" },
+      { href: "/account/lists", label: "Shopping lists", icon: "lists" },
     ],
   },
   {

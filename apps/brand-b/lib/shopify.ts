@@ -4,7 +4,7 @@ import {
   extractShopId,
   type CustomerAccountOAuthConfig,
 } from "@repo/shopify-customer";
-import { createCompanyAdmin, createCustomerDataStore, hasAdminCredentials } from "@repo/customer-data";
+import { createCompanyAdmin, createCustomerDataStore, createShoppingListStore, hasAdminCredentials } from "@repo/customer-data";
 import { siteMembership } from "./brand";
 
 const storeDomain = process.env.SHOPIFY_STORE_DOMAIN as string;
@@ -54,5 +54,11 @@ export const customerData = createCustomerDataStore({
 export const companyAdmin = hasAdminCredentials(adminCredentials)
   ? createCompanyAdmin({ storeDomain, apiVersion: adminApiVersion, ...adminCredentials })
   : null;
+
+/**
+ * Shopping lists (`shopping_list` metaobjects referenced from `custom.shopping_lists`). Admin API
+ * when credentials are set, otherwise a cookie-backed mock so the pages still work locally.
+ */
+export const shoppingLists = createShoppingListStore({ storeDomain, apiVersion: adminApiVersion, ...adminCredentials });
 
 export const SITE_MEMBERSHIP = siteMembership;

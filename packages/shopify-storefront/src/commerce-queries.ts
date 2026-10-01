@@ -264,3 +264,15 @@ export const SEARCH_COUNT_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+/** Shopping list detail and "Add all to cart": tiles for a set of product IDs, in buyer context. */
+export const TILES_BY_IDS_QUERY = /* GraphQL */ `
+  query TilesByIds($ids: [ID!]!, $buyer: BuyerInput) @inContext(buyer: $buyer) {
+    nodes(ids: $ids) {
+      ... on Product {
+        ...ProductTileFields
+      }
+    }
+  }
+  ${PRODUCT_TILE_FRAGMENT}
+`;
