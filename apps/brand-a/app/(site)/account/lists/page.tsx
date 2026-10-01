@@ -19,7 +19,7 @@ export default async function ShoppingListsPage() {
         <h2 className="font-heading text-3xl font-bold text-brand">Shopping lists</h2>
         {shared ? <p className="text-sm text-neutral-600">Lists are shared with everyone at your {ACCOUNT_COPY.org.toLowerCase()}.</p> : null}
       </div>
-      <NewListForm onCreate={(name) => createListAction(name)} />
+      <NewListForm onCreate={createListAction} />
       {lists.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-neutral-300 p-8 text-center text-sm text-neutral-500">No lists yet. Create one above, or use “Add to list” on a product or a past order.</p>
       ) : (
