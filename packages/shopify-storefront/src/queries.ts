@@ -19,6 +19,7 @@ export const PRODUCT_SUMMARY_FRAGMENT = /* GraphQL */ `
     id
     handle
     title
+    tags
     pointsCostMetafield: metafield(namespace: "mindarc_poc", key: "points_cost") {
       value
     }

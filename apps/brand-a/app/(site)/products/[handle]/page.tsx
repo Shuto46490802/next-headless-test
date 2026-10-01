@@ -6,6 +6,8 @@ import { getSession } from "../../../../lib/session";
 import { getFavouriteIds } from "../../../../lib/favorites";
 import { SHOW_CREDIT, getBuyer } from "../../../../lib/listing";
 import { addToCartAction } from "../../../product-actions";
+import { getDeliveryState, stateName } from "../../../../lib/location";
+import { availableInState } from "@repo/shopify-storefront";
 
 type Props = { params: Promise<{ handle: string }> };
 
@@ -28,11 +30,15 @@ export default async function ProductPage({ params }: Props) {
   const product = await storefront.getProductPage(handle, buyer);
   if (!product) notFound();
 
-  const [session, favouriteIds, related] = await Promise.all([
+  const [session, favouriteIds, state, related] = await Promise.all([
     getSession(),
     getFavouriteIds(),
-    storefront.getProductRecommendations(product.id, 4, buyer).catch(() => []),
+    getDeliveryState(),
+    storefront.getProductRecommendations(product.id, 10, buyer).catch(() => []),
   ]);
+  // Partner Connect: products not tagged for the chosen state stay reachable by link but can't be bought.
+  const unavailableMessage = availableInState(product, state) ? null : `Not available in ${stateName(state!)}`;
+  const relatedHere = related.filter((p) => availableInState(p, state)).slice(0, 4);
   const isLoggedIn = Boolean(session);
   const s = product.specs;
   const collection = product.collections[0];
@@ -66,6 +72,7 @@ export default async function ProductPage({ params }: Props) {
         isLoggedIn={isLoggedIn}
         isFavourited={favouriteIds.has(product.id)}
         showCredit={SHOW_CREDIT}
+        unavailableMessage={unavailableMessage}
       />
       <ProductAbout html={product.descriptionHtml} />
       <SpecGrid
@@ -79,7 +86,7 @@ export default async function ProductPage({ params }: Props) {
           { label: "Case dimensions", value: s.case_dimensions },
         ]}
       />
-      <ProductRailSection heading={SHOW_CREDIT ? "Clubs also ordered" : "You may also like"} products={related} onAddToCart={addToCartAction} isLoggedIn={isLoggedIn} favouriteIds={[...favouriteIds]} showCredit={SHOW_CREDIT} />
+      <ProductRailSection heading={SHOW_CREDIT ? "Clubs also ordered" : "You may also like"} products={relatedHere} onAddToCart={addToCartAction} isLoggedIn={isLoggedIn} favouriteIds={[...favouriteIds]} showCredit={SHOW_CREDIT} />
     </>
   );
 }

@@ -6,6 +6,7 @@ import { MiniCart } from "./MiniCart";
 import { CtaButton, Icon, SmartLink, type CmsCta, type CmsImage } from "../cms/primitives";
 import { PromoTile, type PromoTileProps } from "../cms/misc";
 import { HeaderSearch } from "../commerce/HeaderSearch";
+import { StatePicker, type StatePickerProps } from "../commerce/StatePicker";
 
 export interface NavLinkData { label: string; href: string }
 export interface NavColumnData { id: string; heading: string; links: NavLinkData[] }
@@ -34,6 +35,8 @@ export interface SiteHeaderProps {
   searchPlaceholder?: string;
   /** Show "Earns $X" on search overlay rows (Club Connect only). */
   searchShowCredit?: boolean;
+  /** Partner Connect delivery state picker (header chip + popover / mobile sheet). */
+  locationPicker?: StatePickerProps | null;
   /** Header chip: "Club Credit $1,284.00" (CC/PC) or points (DC). Data, not CMS. */
   balance?: { label: string; value: string } | null;
   cart: MiniCartData | null;
@@ -92,6 +95,7 @@ export function SiteHeader(p: SiteHeaderProps) {
             {p.balance.label} <strong className="font-heading text-lg">{p.balance.value}</strong>
           </span>
         ) : null}
+        {p.locationPicker ? <StatePicker {...p.locationPicker} className="hidden md:block" /> : null}
         <nav className="ml-auto flex items-center gap-6 text-xs text-brand">
           <Link href="/account/favorites" className="flex flex-col items-center gap-1"><Icon name="heart" className="h-6 w-6" />Favourites</Link>
           <Link href="/account" className="flex flex-col items-center gap-1"><Icon name="user" className="h-6 w-6" />Account</Link>
@@ -100,7 +104,12 @@ export function SiteHeader(p: SiteHeaderProps) {
           </div>
         </nav>
       </div>
-      <div className="px-4 pb-3 md:hidden">
+      {p.locationPicker ? (
+        <div className="bg-brand-tint md:hidden">
+          <StatePicker {...p.locationPicker} className="[&>button]:rounded-none" />
+        </div>
+      ) : null}
+      <div className="px-4 py-3 md:hidden">
         <HeaderSearch placeholder={p.searchPlaceholder} showCredit={p.searchShowCredit} />
       </div>
       <nav className="bg-brand text-white" aria-label="Categories">

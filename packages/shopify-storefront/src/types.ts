@@ -28,6 +28,8 @@ export interface ProductSummary {
   priceRange: { minVariantPrice: Money; maxVariantPrice: Money };
   /** `mindarc_poc.points_cost` (points per unit). Null → cash only. */
   pointsCost: number | null;
+  /** Includes `state:<code>` availability tags (Partner Connect state picker). */
+  tags: string[];
 }
 
 export interface ProductDetail extends ProductSummary {

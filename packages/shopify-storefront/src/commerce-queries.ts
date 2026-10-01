@@ -258,8 +258,8 @@ export const PRODUCT_PAGE_QUERY = /* GraphQL */ `
 
 /** Match count for the search overlay's "N matches" / "See all N results" (predictiveSearch has no count). */
 export const SEARCH_COUNT_QUERY = /* GraphQL */ `
-  query SearchCount($query: String! $buyer: BuyerInput) @inContext(buyer: $buyer) {
-    search(query: $query, first: 1, types: [PRODUCT], prefix: LAST, unavailableProducts: LAST) {
+  query SearchCount($query: String!, $productFilters: [ProductFilter!], $buyer: BuyerInput) @inContext(buyer: $buyer) {
+    search(query: $query, first: 1, types: [PRODUCT], prefix: LAST, unavailableProducts: LAST, productFilters: $productFilters) {
       totalCount
     }
   }

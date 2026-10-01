@@ -7,6 +7,7 @@ import { getSession } from "../../../../lib/session";
 import { getFavouriteIds } from "../../../../lib/favorites";
 import { SHOW_CREDIT, getBuyer, readListingParams, type ListingSearchParams } from "../../../../lib/listing";
 import { addToCartAction } from "../../../product-actions";
+import { withStateFilter } from "../../../../lib/location";
 
 type Props = { params: Promise<{ handle: string }>; searchParams: Promise<ListingSearchParams> };
 
@@ -25,7 +26,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
   const { filters, sort, first } = readListingParams(sp);
   const buyer = await getBuyer();
   const [listing, session, favouriteIds] = await Promise.all([
-    storefront.getCollectionListing(handle, { filters, sort, first, buyer }),
+    storefront.getCollectionListing(handle, { filters: await withStateFilter(filters), sort, first, buyer }),
     getSession(),
     getFavouriteIds(),
   ]);

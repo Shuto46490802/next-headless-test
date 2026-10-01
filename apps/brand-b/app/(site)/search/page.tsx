@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Breadcrumb, CategoryRail, NoSearchResults, ProductListing, ProductRailSection, SearchResultsHead } from "@repo/ui";
-import { SORT_OPTIONS } from "@repo/shopify-storefront";
+import { SORT_OPTIONS, availableInState } from "@repo/shopify-storefront";
 import { storefront } from "../../../lib/shopify";
 import { getSession } from "../../../lib/session";
 import { getFavouriteIds } from "../../../lib/favorites";
 import { SHOW_CREDIT, getBuyer, readListingParams, type ListingSearchParams } from "../../../lib/listing";
 import { addToCartAction } from "../../product-actions";
+import { getDeliveryState, withStateFilter } from "../../../lib/location";
 
 type Props = { searchParams: Promise<ListingSearchParams> };
 
@@ -42,12 +43,13 @@ export default async function SearchPage({ searchParams }: Props) {
   }
 
   const buyer = await getBuyer();
-  const results = await storefront.searchProducts(q, { filters, sort, first, buyer });
+  const state = await getDeliveryState();
+  const results = await storefront.searchProducts(q, { filters: await withStateFilter(filters), sort, first, buyer });
 
   // Nothing matches the term at all (not just the current filters): no-results state.
   if (results.totalCount === 0 && filters.length === 0) {
     const [popular, categories] = await Promise.all([
-      storefront.getPopularProducts(4, buyer).catch(() => []),
+      storefront.getPopularProducts(12, buyer).then((ps) => ps.filter((p) => availableInState(p, state)).slice(0, 4)).catch(() => []),
       storefront.listCollections(10).catch(() => []),
     ]);
     return (

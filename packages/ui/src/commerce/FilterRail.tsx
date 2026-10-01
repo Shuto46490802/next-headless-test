@@ -14,7 +14,8 @@ const PRICE_BANDS: { label: string; min?: number; max?: number }[] = [
 ];
 
 const QUICK_SALE = "badge:quick-sale";
-const isBadgeValue = (v: FilterValueData) => v.input.includes('"badge:') || v.label.startsWith("badge:");
+/** Badge tags drive the Quick Sale toggle; `unavailable:` / `avail:` tags are the PC state availability, applied server-side. None show as facet values. */
+const isBadgeValue = (v: FilterValueData) => /"(badge|unavailable|avail):/.test(v.input) || /^(badge|unavailable|avail):/.test(v.label);
 const CHIP_LABELS = /pack|size/i;
 
 /** Human label for an applied filter input, for the toolbar chips. */

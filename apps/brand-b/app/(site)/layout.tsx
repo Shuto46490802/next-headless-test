@@ -9,6 +9,8 @@ import { removeCartLineAction, updateCartLineAction } from "../cart-actions";
 import { toCta, toFooter, toLoggedOutNav, toNavigation } from "../sections";
 import { getSiteSettings } from "../site-settings";
 import { SHOW_CREDIT } from "../../lib/listing";
+import { DELIVERY_STATES, STATE_PICKER_ENABLED, getDeliveryLocation } from "../../lib/location";
+import { saveDeliveryLocation } from "../location-actions";
 
 /** Storefront chrome: announcement bar, header, megamenu and footer from this site's Site Settings entry. */
 export default async function SiteLayout({ children }: { children: ReactNode }) {
@@ -17,6 +19,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
   const [collections, session, cart] = await Promise.all([storefront.listCollections(8).catch(() => []), getSession(), getCart()]);
 
   const isLoggedIn = Boolean(session);
+  const location = STATE_PICKER_ENABLED && isLoggedIn ? await getDeliveryLocation() : null;
 
   return (
     <>
@@ -30,6 +33,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
         loggedOutCtas={(settings?.loggedOutCtas ?? []).map(toCta).filter((c) => c !== null)}
         searchPlaceholder={settings?.searchPlaceholder}
         searchShowCredit={SHOW_CREDIT}
+        locationPicker={STATE_PICKER_ENABLED && isLoggedIn ? { states: DELIVERY_STATES, current: location, onSave: saveDeliveryLocation } : null}
         cart={cart}
         cartActions={{ updateQuantity: updateCartLineAction, remove: removeCartLineAction }}
         checkoutHref="/api/checkout"

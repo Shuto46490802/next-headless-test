@@ -11,6 +11,8 @@ export { toCta, toFooter, toLoggedOutNav, toNavigation };
 import { contentful } from "../lib/contentful";
 import { storefront } from "../lib/shopify";
 import { getBuyer } from "../lib/listing";
+import { getDeliveryState } from "../lib/location";
+import { availableInState } from "@repo/shopify-storefront";
 
 export interface SectionContext {
   isLoggedIn: boolean;
@@ -52,7 +54,8 @@ export async function Section({ section, ctx }: { section: PageSection; ctx: Sec
       // falls back to the storefront's product list so the band still renders.
       const buyer = await getBuyer();
       const collection = rail.source === "collection" && active ? await storefront.getCollection(active, { first: rail.limit, buyer }).catch(() => null) : null;
-      const products = collection ? collection.products.items : await storefront.listProducts({ first: rail.limit, buyer }).then((r) => r.items).catch(() => []);
+      const state = await getDeliveryState();
+      const products = (collection ? collection.products.items : await storefront.listProducts({ first: rail.limit, buyer }).then((r) => r.items).catch(() => [])).filter((p) => availableInState(p, state));
       const slots = rail.promoTile ? Math.max(rail.limit - 1, 1) : rail.limit;
       return (
         <ProductRail

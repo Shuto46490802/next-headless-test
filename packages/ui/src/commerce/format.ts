@@ -25,3 +25,19 @@ export function tileBadge(p: Pick<TileProductData, "badges" | "compareAtPrice">)
   const other = p.badges[0];
   return other ? other.replace(/-/g, " ") : null;
 }
+
+/** Australia Post postcode ranges → state, so the postcode field can confirm the state choice. */
+export function stateForPostcode(postcode: string): string | null {
+  if (!/^\d{4}$/.test(postcode)) return null;
+  const n = Number(postcode);
+  const inRange = (ranges: [number, number][]) => ranges.some(([a, b]) => n >= a && n <= b);
+  if (inRange([[2600, 2618], [2900, 2920], [200, 299]])) return "ACT";
+  if (inRange([[1000, 2599], [2619, 2899], [2921, 2999]])) return "NSW";
+  if (inRange([[3000, 3999], [8000, 8999]])) return "VIC";
+  if (inRange([[4000, 4999], [9000, 9999]])) return "QLD";
+  if (inRange([[5000, 5999]])) return "SA";
+  if (inRange([[6000, 6999]])) return "WA";
+  if (inRange([[7000, 7999]])) return "TAS";
+  if (inRange([[800, 999]])) return "NT";
+  return null;
+}

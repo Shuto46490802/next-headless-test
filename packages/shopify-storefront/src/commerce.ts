@@ -227,6 +227,29 @@ export function parseFilterParams(values: string[]): Record<string, unknown>[] {
   return out;
 }
 
+/* ------------------------------------------------------------- state picker */
+
+/**
+ * Partner Connect state availability.
+ *
+ * Merchant rule: every product is sold in every state unless tagged `unavailable:<code>`
+ * (e.g. `unavailable:wa`). Only the exceptions are tagged.
+ *
+ * Search & Discovery can only require a tag, never exclude one, so a Shopify Flow workflow
+ * derives `avail:<code>` for each state the product isn't marked unavailable in. Listings filter
+ * on that derived tag (Tags filter set to AND, so it narrows alongside Quick Sale). Lists without
+ * filter support (predictive search, recommendations, home rails) are trimmed with
+ * `availableInState`, which reads the merchant tag directly.
+ */
+export const unavailableTag = (code: string) => `unavailable:${code.toLowerCase()}`;
+export const availabilityTag = (code: string) => `avail:${code.toLowerCase()}`;
+export const stateFilter = (code: string): Record<string, unknown> => ({ tag: availabilityTag(code) });
+export function availableInState(product: { tags: string[] }, code: string | null | undefined): boolean {
+  if (!code) return true;
+  const tag = unavailableTag(code);
+  return !product.tags.some((t) => t.toLowerCase() === tag);
+}
+
 /* ------------------------------------------------------------------ client */
 
 export interface ListingOptions {
@@ -329,8 +352,12 @@ export function createCommerceQueries(client: StorefrontClient) {
       };
     },
 
-    async countSearchResults(query: string, buyer?: BuyerInput | null): Promise<number> {
-      const data = await client.request<{ search: { totalCount: number } }>(SEARCH_COUNT_QUERY, { query, buyer: buyer ?? null });
+    async countSearchResults(query: string, buyer?: BuyerInput | null, filters?: Record<string, unknown>[]): Promise<number> {
+      const data = await client.request<{ search: { totalCount: number } }>(SEARCH_COUNT_QUERY, {
+        query,
+        productFilters: filters?.length ? filters : null,
+        buyer: buyer ?? null,
+      });
       return data.search.totalCount;
     },
 

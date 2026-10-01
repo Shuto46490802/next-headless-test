@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Breadcrumb, CategoryBanner, ProductListing } from "@repo/ui";
-import { SORT_OPTIONS } from "@repo/shopify-storefront";
+import { SORT_OPTIONS, availableInState } from "@repo/shopify-storefront";
 import { storefront } from "../../../lib/shopify";
 import { getSession } from "../../../lib/session";
 import { getFavouriteIds } from "../../../lib/favorites";
 import { SHOW_CREDIT, getBuyer, readListingParams, type ListingSearchParams } from "../../../lib/listing";
 import { addToCartAction } from "../../product-actions";
+import { getDeliveryState, withStateFilter } from "../../../lib/location";
 
 export const metadata: Metadata = { title: "All products" };
 
@@ -18,12 +19,13 @@ export default async function AllProductsPage({ searchParams }: { searchParams: 
 
   const buyer = await getBuyer();
   const [listing, session, favouriteIds] = await Promise.all([
-    storefront.getCollectionListing("all", { filters, sort, first, buyer }).catch(() => null),
+    storefront.getCollectionListing("all", { filters: await withStateFilter(filters), sort, first, buyer }).catch(() => null),
     getSession(),
     getFavouriteIds(),
   ]);
   // Without an "all" collection in the store, fall back to best sellers (no facets).
-  const fallback = listing ? null : await storefront.getPopularProducts(first, buyer);
+  const state = await getDeliveryState();
+  const fallback = listing ? null : (await storefront.getPopularProducts(first, buyer)).filter((p) => availableInState(p, state));
 
   return (
     <>

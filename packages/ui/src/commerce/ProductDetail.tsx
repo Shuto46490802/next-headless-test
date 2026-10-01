@@ -38,6 +38,8 @@ export interface ProductDetailProps {
   /** Club Connect: "Earns $4.00 for your club". Partner Connect hides it. */
   showCredit?: boolean;
   creditLabel?: string;
+  /** Set when the product can't be bought here (e.g. "Not available in Victoria"); disables add to cart. */
+  unavailableMessage?: string | null;
 }
 
 /** Shopify gives single-variant products a "Title: Default Title" option; it isn't a real choice. */
@@ -47,7 +49,7 @@ const realOptions = (options: ProductDetailData["options"]) => options.filter((o
  * Figma PDP top section: thumbnail rail + hero frame on the left, the buy panel card on the right,
  * and a sticky buy bar that slides in once the panel's add button scrolls out of view.
  */
-export function ProductDetail({ product, onAddToCart, isLoggedIn, isFavourited, showCredit = true, creditLabel = "for your club" }: ProductDetailProps) {
+export function ProductDetail({ product, onAddToCart, isLoggedIn, isFavourited, showCredit = true, creditLabel = "for your club", unavailableMessage = null }: ProductDetailProps) {
   const options = realOptions(product.options);
   const [selected, setSelected] = useState<Record<string, string>>(() => {
     const first = product.variants.find((v) => v.availableForSale) ?? product.variants[0];
@@ -80,7 +82,8 @@ export function ProductDetail({ product, onAddToCart, isLoggedIn, isFavourited, 
     return () => io.disconnect();
   }, []);
 
-  const soldOut = !variant || !variant.availableForSale;
+  const restricted = Boolean(unavailableMessage);
+  const soldOut = !variant || !variant.availableForSale || restricted;
   const max = product.maxQuantity ?? 99;
   const saving = variant ? savingLabel(variant.price, variant.compareAtPrice) : null;
   const unit = variant ? perUnitLabel(variant.price, product.caseQuantity, product.container) : null;
@@ -101,7 +104,7 @@ export function ProductDetail({ product, onAddToCart, isLoggedIn, isFavourited, 
     });
   }
 
-  const addLabel = soldOut ? "Out of stock" : pending ? "Adding…" : state === "added" ? "Added to cart ✓" : `Add to cart · ${lineTotal}`;
+  const addLabel = restricted ? "Not available" : soldOut ? "Out of stock" : pending ? "Adding…" : state === "added" ? "Added to cart ✓" : `Add to cart · ${lineTotal}`;
   const addBtn = "flex h-14 flex-1 items-center justify-center rounded-full px-6 font-heading text-lg font-bold uppercase tracking-[0.05em] transition disabled:cursor-not-allowed";
   const addTone = soldOut ? "border border-neutral-300 text-neutral-400" : "bg-accent text-accent-fg hover:opacity-90 disabled:opacity-60";
 
@@ -193,7 +196,7 @@ export function ProductDetail({ product, onAddToCart, isLoggedIn, isFavourited, 
               <dt className="font-heading font-bold uppercase tracking-[0.05em] text-neutral-500">Availability</dt>
               <dd className={`flex items-center gap-2 font-medium ${soldOut ? "text-neutral-500" : "text-green-700"}`}>
                 <span aria-hidden className={`h-2 w-2 rounded-full ${soldOut ? "bg-neutral-400" : "bg-green-600"}`} />
-                {soldOut ? "Out of stock" : "In stock"}
+                {restricted ? unavailableMessage : soldOut ? "Out of stock" : "In stock"}
               </dd>
             </div>
             {product.maxQuantity ? (
