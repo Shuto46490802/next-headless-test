@@ -1,82 +1,84 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Image from "next/image";
-import { AddToCartForm, FavoriteButton, type AddToCartResult } from "@repo/ui";
-import { CartMutationError } from "@repo/shopify-storefront";
+import { Breadcrumb, ProductAbout, ProductDetail, ProductRailSection, SpecGrid } from "@repo/ui";
 import { storefront } from "../../../../lib/shopify";
-import { addToCart } from "../../../../lib/cart";
 import { getSession } from "../../../../lib/session";
 import { getFavouriteIds } from "../../../../lib/favorites";
+import { SHOW_CREDIT } from "../../../../lib/listing";
+import { addToCartAction } from "../../../product-actions";
 
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ handle: string }>;
-}) {
+type Props = { params: Promise<{ handle: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
-  const product = await storefront.getProduct(handle);
+  const product = await storefront.getProductPage(handle).catch(() => null);
+  return product ? { title: product.title, openGraph: product.featuredImage ? { images: [product.featuredImage.url] } : undefined } : {};
+}
+
+const withUnit = (v: string | undefined, unit: string) => (v ? `${v}${unit}` : undefined);
+
+/**
+ * Figma "CC / PDP": gallery and buy panel (sticky buy bar once it scrolls away), About this
+ * product, the specification grid from `custom.*` metafields, and "Clubs also ordered" from
+ * Shopify's related-product recommendations.
+ */
+export default async function ProductPage({ params }: Props) {
+  const { handle } = await params;
+  const product = await storefront.getProductPage(handle);
   if (!product) notFound();
 
-  const [session, favouriteIds] = await Promise.all([getSession(), getFavouriteIds()]);
-
-  async function addProductToCart(variantId: string, quantity: number): Promise<AddToCartResult> {
-    "use server";
-    try {
-      const cart = await addToCart(variantId, quantity);
-      return { ok: true, cart };
-    } catch (err) {
-      // Validation function rejections (e.g. no liquor licence) arrive as CartMutationError
-      // carrying the function's message; anything else gets a generic fallback.
-      return {
-        ok: false,
-        message: err instanceof CartMutationError ? err.message : "Couldn't add to cart. Please try again.",
-      };
-    }
-  }
+  const [session, favouriteIds, related] = await Promise.all([
+    getSession(),
+    getFavouriteIds(),
+    storefront.getProductRecommendations(product.id, 4).catch(() => []),
+  ]);
+  const isLoggedIn = Boolean(session);
+  const s = product.specs;
+  const collection = product.collections[0];
 
   return (
-    <section className="mx-auto grid max-w-6xl grid-cols-1 gap-12 px-4 py-12 sm:px-6 lg:grid-cols-2">
-      <div className="flex flex-col gap-4">
-        <div className="relative aspect-square overflow-hidden rounded-2xl bg-neutral-100">
-          {product.images[0] ? (
-            <Image
-              src={product.images[0].url}
-              alt={product.images[0].altText ?? product.title}
-              fill
-              sizes="(min-width: 1024px) 50vw, 100vw"
-              className="object-cover"
-              priority
-            />
-          ) : null}
-          <FavoriteButton
-            productId={product.id}
-            initiallyFavourited={favouriteIds.has(product.id)}
-            isLoggedIn={Boolean(session)}
-            className="absolute right-4 top-4"
-          />
-        </div>
-        {product.images.length > 1 ? (
-          <div className="grid grid-cols-4 gap-3">
-            {product.images.slice(1, 5).map((image, i) => (
-              <div key={i} className="relative aspect-square overflow-hidden rounded-xl bg-neutral-100">
-                <Image src={image.url} alt={image.altText ?? product.title} fill sizes="25vw" className="object-cover" />
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="flex flex-col gap-6">
-        <h1 className="text-3xl font-semibold text-neutral-900">{product.title}</h1>
-        <AddToCartForm
-          options={product.options}
-          variants={product.variants}
-          onAddToCart={addProductToCart}
-        />
-        <div
-          className="prose prose-neutral max-w-none text-neutral-600"
-          dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
-        />
-      </div>
-    </section>
+    <>
+      <Breadcrumb
+        items={[
+          { label: "Home", href: "/" },
+          ...(collection ? [{ label: collection.title, href: `/collections/${collection.handle}` }] : [{ label: "Shop", href: "/products" }]),
+          { label: product.title },
+        ]}
+      />
+      <ProductDetail
+        product={{
+          id: product.id,
+          handle: product.handle,
+          title: product.title,
+          brand: product.brand,
+          eyebrowDetail: product.productType || null,
+          availableForSale: product.availableForSale,
+          images: product.images,
+          options: product.options,
+          variants: product.allVariants,
+          creditEarned: product.creditEarned,
+          caseQuantity: product.caseQuantity,
+          container: product.container,
+          maxQuantity: s.max_qty_per_order ? Number(s.max_qty_per_order) : null,
+        }}
+        onAddToCart={addToCartAction}
+        isLoggedIn={isLoggedIn}
+        isFavourited={favouriteIds.has(product.id)}
+        showCredit={SHOW_CREDIT}
+      />
+      <ProductAbout html={product.descriptionHtml} />
+      <SpecGrid
+        rows={[
+          { label: "ABV", value: withUnit(s.abv, "%") },
+          { label: "Standard drinks", value: s.standard_drinks },
+          { label: "Unit size", value: s.unit_size },
+          { label: "Units per case", value: s.case_quantity },
+          { label: "Container", value: s.container },
+          { label: "Serve", value: s.serve },
+          { label: "Case dimensions", value: s.case_dimensions },
+        ]}
+      />
+      <ProductRailSection heading={SHOW_CREDIT ? "Clubs also ordered" : "You may also like"} products={related} onAddToCart={addToCartAction} isLoggedIn={isLoggedIn} favouriteIds={[...favouriteIds]} showCredit={SHOW_CREDIT} />
+    </>
   );
 }

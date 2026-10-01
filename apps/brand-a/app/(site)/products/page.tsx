@@ -1,29 +1,45 @@
-import { ProductCard, EmptyState } from "@repo/ui";
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { Breadcrumb, CategoryBanner, ProductListing } from "@repo/ui";
+import { SORT_OPTIONS } from "@repo/shopify-storefront";
 import { storefront } from "../../../lib/shopify";
 import { getSession } from "../../../lib/session";
 import { getFavouriteIds } from "../../../lib/favorites";
+import { SHOW_CREDIT, readListingParams, type ListingSearchParams } from "../../../lib/listing";
+import { addToCartAction } from "../../product-actions";
 
-export default async function AllProductsPage() {
-  const { items: products } = await storefront.listProducts({ first: 24 });
-  const [session, favouriteIds] = await Promise.all([getSession(), getFavouriteIds()]);
+export const metadata: Metadata = { title: "All products" };
+
+/** Shop-all listing. Uses the store's "all" collection so Search & Discovery filters apply; `?q=` goes to search. */
+export default async function AllProductsPage({ searchParams }: { searchParams: Promise<ListingSearchParams> }) {
+  const sp = await searchParams;
+  const { filters, sort, first, q } = readListingParams(sp);
+  if (q) redirect(`/search?q=${encodeURIComponent(q)}`);
+
+  const [listing, session, favouriteIds] = await Promise.all([
+    storefront.getCollectionListing("all", { filters, sort, first }).catch(() => null),
+    getSession(),
+    getFavouriteIds(),
+  ]);
+  // Without an "all" collection in the store, fall back to best sellers (no facets).
+  const fallback = listing ? null : await storefront.getPopularProducts(first);
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-      <h1 className="mb-8 text-3xl font-semibold text-neutral-900">All products</h1>
-      {products.length === 0 ? (
-        <EmptyState title="No products yet" description="Check back soon." />
-      ) : (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              isLoggedIn={Boolean(session)}
-              isFavourited={favouriteIds.has(product.id)}
-            />
-          ))}
-        </div>
-      )}
-    </section>
+    <>
+      <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Shop" }]} />
+      <CategoryBanner eyebrow="Shop" title={listing?.collection.title && listing.collection.handle !== "all" ? listing.collection.title : "All products"} description={listing?.collection.description} image={listing?.collection.image} />
+      <ProductListing
+        products={listing?.products ?? fallback ?? []}
+        filters={listing?.filters ?? []}
+        total={listing?.totalCount ?? fallback?.length ?? 0}
+        hasNextPage={listing?.pageInfo.hasNextPage ?? false}
+        sort={sort}
+        sortOptions={SORT_OPTIONS}
+        onAddToCart={addToCartAction}
+        isLoggedIn={Boolean(session)}
+        favouriteIds={[...favouriteIds]}
+        showCredit={SHOW_CREDIT}
+      />
+    </>
   );
 }

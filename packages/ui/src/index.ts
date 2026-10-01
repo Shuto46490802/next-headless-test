@@ -16,3 +16,4 @@ export * from "./components/PreviewBanner";
 export * from "./cms";
 export * from "./components/SiteHeader";
 export * from "./components/SiteFooter";
+export * from "./commerce";

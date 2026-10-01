@@ -29,10 +29,11 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
         loggedOutNavigation={toLoggedOutNav(settings)}
         loggedOutCtas={(settings?.loggedOutCtas ?? []).map(toCta).filter((c) => c !== null)}
         searchPlaceholder={settings?.searchPlaceholder}
+        searchShowCredit={false}
         cart={cart}
         cartActions={{ updateQuantity: updateCartLineAction, remove: removeCartLineAction, togglePoints: toggleLinePaymentAction }}
         points={{ enabled: points.enabled, balance: points.balance }}
-          balance={points.enabled && points.balance != null ? { label: "Points", value: points.balance.toLocaleString() } : null}
+        balance={points.enabled && points.balance != null ? { label: "Points", value: points.balance.toLocaleString() } : null}
         collections={collections.map((c) => ({ handle: c.handle, title: c.title }))}
       />
       <main className="flex-1">

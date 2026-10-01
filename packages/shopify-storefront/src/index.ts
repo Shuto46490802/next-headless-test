@@ -1,4 +1,5 @@
 import { createStorefrontClient, type StorefrontConfig } from "./client";
+import { createCommerceQueries } from "./commerce";
 import {
   CART_BUYER_IDENTITY_UPDATE_MUTATION,
   CART_CREATE_MUTATION,
@@ -25,6 +26,7 @@ import type {
 } from "./types";
 
 export * from "./types";
+export * from "./commerce";
 export { StorefrontApiError } from "./client";
 import { USE_POINTS_ATTRIBUTE } from "./types";
 
@@ -111,6 +113,7 @@ export function createShopifyStorefront(config: StorefrontConfig) {
 
   return {
     client,
+    ...createCommerceQueries(client),
 
     async getProduct(handle: string): Promise<ProductDetail | null> {
       const data = await client.request<{ product: RawProductDetail | null }>(

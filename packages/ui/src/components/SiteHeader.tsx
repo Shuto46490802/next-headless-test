@@ -5,6 +5,7 @@ import type { CartActionResult, MiniCartData } from "../cart-events";
 import { MiniCart } from "./MiniCart";
 import { CtaButton, Icon, SmartLink, type CmsCta, type CmsImage } from "../cms/primitives";
 import { PromoTile, type PromoTileProps } from "../cms/misc";
+import { HeaderSearch } from "../commerce/HeaderSearch";
 
 export interface NavLinkData { label: string; href: string }
 export interface NavColumnData { id: string; heading: string; links: NavLinkData[] }
@@ -31,6 +32,8 @@ export interface SiteHeaderProps {
   loggedOutNavigation?: NavLinkData[];
   loggedOutCtas?: CmsCta[];
   searchPlaceholder?: string;
+  /** Show "Earns $X" on search overlay rows (Club Connect only). */
+  searchShowCredit?: boolean;
   /** Header chip: "Club Credit $1,284.00" (CC/PC) or points (DC). Data, not CMS. */
   balance?: { label: string; value: string } | null;
   cart: MiniCartData | null;
@@ -82,10 +85,7 @@ export function SiteHeader(p: SiteHeaderProps) {
       {p.announcementMessages?.length ? <AnnouncementBar messages={p.announcementMessages} /> : null}
       <div className="mx-auto flex max-w-[1440px] items-center gap-6 px-4 py-3 sm:px-8">
         <Logo brand={p.brand} logo={p.logo} />
-        <form action="/products" className="hidden flex-1 items-center gap-3 rounded-full border border-neutral-300 px-4 py-2.5 md:flex">
-          <Icon name="search" className="h-5 w-5 text-brand" />
-          <input name="q" type="search" placeholder={p.searchPlaceholder ?? "Search products"} className="w-full bg-transparent text-sm outline-none" />
-        </form>
+        <HeaderSearch placeholder={p.searchPlaceholder} showCredit={p.searchShowCredit} className="hidden flex-1 md:block" />
         {p.balance ? (
           <span className="hidden items-center gap-2 rounded-full bg-brand-tint px-3 py-2 text-sm text-brand lg:inline-flex">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">$</span>
@@ -99,6 +99,9 @@ export function SiteHeader(p: SiteHeaderProps) {
             <MiniCart initialCart={p.cart} checkoutHref={p.checkoutHref} onUpdateQuantity={p.cartActions.updateQuantity} onRemove={p.cartActions.remove} onTogglePoints={p.cartActions.togglePoints} points={p.points} />
           </div>
         </nav>
+      </div>
+      <div className="px-4 pb-3 md:hidden">
+        <HeaderSearch placeholder={p.searchPlaceholder} showCredit={p.searchShowCredit} />
       </div>
       <nav className="bg-brand text-white" aria-label="Categories">
         <ul className="mx-auto flex max-w-[1440px] items-center gap-2 overflow-x-auto px-4 sm:px-8">

@@ -8,6 +8,7 @@ import { getCart } from "../../lib/cart";
 import { removeCartLineAction, updateCartLineAction } from "../cart-actions";
 import { toCta, toFooter, toLoggedOutNav, toNavigation } from "../sections";
 import { getSiteSettings } from "../site-settings";
+import { SHOW_CREDIT } from "../../lib/listing";
 
 /** Storefront chrome: announcement bar, header, megamenu and footer from this site's Site Settings entry. */
 export default async function SiteLayout({ children }: { children: ReactNode }) {
@@ -28,9 +29,10 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
         loggedOutNavigation={toLoggedOutNav(settings)}
         loggedOutCtas={(settings?.loggedOutCtas ?? []).map(toCta).filter((c) => c !== null)}
         searchPlaceholder={settings?.searchPlaceholder}
+        searchShowCredit={SHOW_CREDIT}
         cart={cart}
         cartActions={{ updateQuantity: updateCartLineAction, remove: removeCartLineAction }}
-          checkoutHref="/api/checkout"
+        checkoutHref="/api/checkout"
         balance={null}
         collections={collections.map((c) => ({ handle: c.handle, title: c.title }))}
       />
