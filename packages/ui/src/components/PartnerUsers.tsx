@@ -77,7 +77,7 @@ export function PartnerUsers({
       <header className="flex flex-col gap-4 bg-neutral-100 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight text-neutral-900">{company.name}</h1>
+            <h2 className="font-heading text-2xl font-bold text-brand">{company.name}</h2>
             {company.licensed ? (
               <span className="rounded-sm bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
                 Licensed

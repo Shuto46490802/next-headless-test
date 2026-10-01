@@ -10,8 +10,16 @@ import {
   CUSTOMER_UPDATE_MUTATION,
   ORDER_DETAIL_QUERY,
   ORDERS_QUERY,
+  ACCOUNT_OVERVIEW_QUERY,
+  ACCOUNT_ORDER_DETAIL_QUERY,
+  LOCATION_ORDERS_QUERY,
+  MY_ORDERS_QUERY,
 } from "./queries";
 import type {
+  AccountFulfillment,
+  AccountOrderDetail,
+  AccountOrderRow,
+  AccountOverview,
   Address,
   CompanyLocationAccess,
   CustomerProfile,
@@ -38,6 +46,58 @@ function assertNoErrors(userErrors: UserError[]) {
   if (userErrors.length > 0) {
     throw new Error(userErrors.map((e) => e.message).join(", "));
   }
+}
+
+
+/* ---------------------------------------------------------------- account helpers */
+
+type RawMoney = { amount: string; currencyCode: string };
+type RawPurchaser = { contact?: { customer: { firstName: string | null; lastName: string | null } | null } | null; firstName?: string | null; lastName?: string | null } | null;
+type RawFulfillment = {
+  status: string | null;
+  latestShipmentStatus: string | null;
+  createdAt?: string;
+  updatedAt: string;
+  trackingInformation: { number: string | null; url: string | null; company: string | null }[];
+  events?: { nodes: { status: string; happenedAt: string }[] };
+};
+type RawOrderRow = Omit<AccountOrderRow, "orderedBy" | "fulfillments"> & { purchasingEntity: RawPurchaser; fulfillments: { nodes: RawFulfillment[] } };
+
+function personName(p: { firstName?: string | null; lastName?: string | null } | null | undefined): string | null {
+  const n = [p?.firstName, p?.lastName].filter(Boolean).join(" ");
+  return n || null;
+}
+function orderedBy(e: RawPurchaser): string | null {
+  return personName(e?.contact?.customer ?? e ?? null);
+}
+function mapFulfillment(f: RawFulfillment): AccountFulfillment {
+  return {
+    status: f.status,
+    latestShipmentStatus: f.latestShipmentStatus,
+    createdAt: f.createdAt,
+    updatedAt: f.updatedAt,
+    tracking: f.trackingInformation,
+    events: f.events?.nodes,
+  };
+}
+function mapOrderRow(o: RawOrderRow): AccountOrderRow {
+  const { purchasingEntity, fulfillments, ...rest } = o;
+  return { ...rest, orderedBy: orderedBy(purchasingEntity), fulfillments: fulfillments.nodes.map(mapFulfillment) };
+}
+/** Money metafields arrive as {"amount":"1.00","currency_code":"AUD"}; decimals as "1284.00". */
+function metaMoney(value: string | undefined, currencyCode = "AUD"): RawMoney | null {
+  if (value == null || value === "") return null;
+  try {
+    const v = JSON.parse(value) as unknown;
+    if (typeof v === "number") return { amount: String(v), currencyCode };
+    if (v && typeof v === "object" && "amount" in v) {
+      const m = v as { amount: string | number; currency_code?: string };
+      return { amount: String(m.amount), currencyCode: m.currency_code ?? currencyCode };
+    }
+  } catch {
+    /* plain string */
+  }
+  return Number.isFinite(Number(value)) ? { amount: value, currencyCode } : null;
 }
 
 export function createShopifyCustomerAccount(config: CustomerAccountConfig) {
@@ -202,6 +262,102 @@ export function createShopifyCustomerAccount(config: CustomerAccountConfig) {
         }
       }
       return out;
+    },
+
+    async getAccountOverview(accessToken: string): Promise<AccountOverview> {
+      const data = await client.request<{
+        customer: {
+          id: string;
+          firstName: string | null;
+          lastName: string | null;
+          emailAddress: { emailAddress: string } | null;
+          phoneNumber: { phoneNumber: string } | null;
+          companyContacts: {
+            nodes: {
+              title: string | null;
+              company: { id: string; name: string; externalId: string | null; metafields: ({ key: string; value: string } | null)[] } | null;
+              locations: { nodes: { id: string; name: string; externalId: string | null }[] };
+            }[];
+          };
+        };
+      }>(accessToken, ACCOUNT_OVERVIEW_QUERY);
+      const c = data.customer;
+      const contact = c.companyContacts.nodes[0];
+      const meta: Record<string, string> = {};
+      for (const m of contact?.company?.metafields ?? []) if (m) meta[m.key] = m.value;
+      const loc = contact?.locations.nodes[0] ?? null;
+      return {
+        customerId: c.id,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        email: c.emailAddress?.emailAddress ?? null,
+        phone: c.phoneNumber?.phoneNumber ?? null,
+        title: contact?.title ?? null,
+        company: contact?.company
+          ? {
+              id: contact.company.id,
+              name: contact.company.name,
+              accountNumber: contact.company.externalId ?? loc?.externalId ?? null,
+              location: loc ? { id: loc.id, name: loc.name } : null,
+              creditBalance: metaMoney(meta.credit_balance),
+              creditPending: metaMoney(meta.credit_pending),
+              creditDonated: metaMoney(meta.credit_donated),
+              referralCode: meta.referral_code ?? null,
+              accountStatus: meta.account_status ?? null,
+            }
+          : null,
+      };
+    },
+
+    /**
+     * Orders & invoices. "company" lists every order for the location (all users), "mine" the
+     * customer's own. `query` uses Shopify order search syntax, e.g. "name:1042".
+     */
+    async listAccountOrders(
+      accessToken: string,
+      opts: { scope: "company" | "mine"; locationId?: string | null; first?: number; after?: string | null; query?: string | null },
+    ): Promise<{ orders: AccountOrderRow[]; hasNextPage: boolean; endCursor: string | null }> {
+      const vars = { first: opts.first ?? 20, after: opts.after ?? null, query: opts.query || null };
+      type Conn = { nodes: RawOrderRow[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
+      let conn: Conn | null = null;
+      if (opts.scope === "company" && opts.locationId) {
+        const data = await client.request<{ companyLocation: { orders: Conn } | null }>(accessToken, LOCATION_ORDERS_QUERY, { ...vars, locationId: opts.locationId });
+        conn = data.companyLocation?.orders ?? null;
+      }
+      if (!conn) {
+        const data = await client.request<{ customer: { orders: Conn } }>(accessToken, MY_ORDERS_QUERY, vars);
+        conn = data.customer.orders;
+      }
+      return { orders: conn.nodes.map(mapOrderRow), hasNextPage: conn.pageInfo.hasNextPage, endCursor: conn.pageInfo.endCursor };
+    },
+
+    async getAccountOrder(accessToken: string, id: string): Promise<AccountOrderDetail | null> {
+      type Raw = Omit<AccountOrderDetail, "orderedBy" | "fulfillments" | "discounts" | "paymentMethod" | "shippingMethod" | "lineItems"> & {
+        purchasingEntity: RawPurchaser;
+        fulfillments: { nodes: RawFulfillment[] };
+        discountApplications: { nodes: { code?: string; value: { amount?: string; currencyCode?: string; percentage?: number } }[] };
+        transactions: { kind: string | null; status: string | null; type: string; paymentDetails: { cardBrand?: string; last4?: string } | null }[];
+        shippingLine: { title: string } | null;
+        lineItems: { nodes: AccountOrderDetail["lineItems"] };
+      };
+      const data = await client.request<{ order: Raw | null }>(accessToken, ACCOUNT_ORDER_DETAIL_QUERY, { id });
+      const o = data.order;
+      if (!o) return null;
+      const { purchasingEntity, fulfillments, discountApplications, transactions, shippingLine, lineItems, ...rest } = o;
+      const card = transactions.find((t) => t.paymentDetails?.last4)?.paymentDetails;
+      return {
+        ...rest,
+        orderedBy: orderedBy(purchasingEntity),
+        fulfillments: fulfillments.nodes.map(mapFulfillment),
+        discounts: discountApplications.nodes.map((d) => ({
+          code: d.code ?? null,
+          amount: d.value.amount != null ? { amount: d.value.amount, currencyCode: d.value.currencyCode ?? "AUD" } : null,
+          percentage: d.value.percentage ?? null,
+        })),
+        paymentMethod: card ? `${card.cardBrand ?? "Card"} •••• ${card.last4}` : transactions.length ? "Paid" : null,
+        shippingMethod: shippingLine?.title ?? null,
+        lineItems: lineItems.nodes,
+      };
     },
 
     async getOrder(accessToken: string, id: string): Promise<OrderDetail | null> {

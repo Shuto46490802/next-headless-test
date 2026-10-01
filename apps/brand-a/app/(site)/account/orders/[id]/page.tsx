@@ -1,61 +1,44 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { revalidatePath } from "next/cache";
-import { OrderLineItems, formatMoney, formatDate } from "@repo/ui";
+import { OrderDetailView } from "@repo/ui";
 import { getValidAccessToken, requireSession } from "../../../../../lib/session";
-import { customerAccount, customerData } from "../../../../../lib/shopify";
+import { customerAccount, storefront } from "../../../../../lib/shopify";
+import { SHOW_CREDIT } from "../../../../../lib/listing";
+import { addOrderToFavourites, reorderLines } from "../../../../account-actions";
 
-export default async function OrderDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  // Next.js doesn't decode %2F/%3A within a dynamic segment back to "/"/":", so the
-  // order GID (e.g. gid://shopify/Order/123) arrives still percent-encoded — decode it.
+type Props = { params: Promise<{ id: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  return { title: `Order ${decodeURIComponent(id).split("/").pop()}` };
+}
+
+/** Figma "Order detail". The order GID arrives percent-encoded in the segment, so decode it. */
+export default async function OrderDetailPage({ params }: Props) {
   const { id: rawId } = await params;
   const id = decodeURIComponent(rawId);
-  const session = await requireSession();
-  const accessToken = await getValidAccessToken(session);
-  const order = await customerAccount.getOrder(accessToken, id);
+  const token = await getValidAccessToken(await requireSession());
+  const order = await customerAccount.getAccountOrder(token, id);
   if (!order) notFound();
 
-  async function addToFavourites(productIds: string[]) {
-    "use server";
-    const session = await requireSession();
-    const current = await customerData.getFavourites(session.customerId);
-    const next = Array.from(new Set([...current, ...productIds]));
-    await customerData.setFavourites(session.customerId, next);
-    revalidatePath("/account/favorites");
-  }
+  // Credit earned and pack line come from the live products (orders don't store metafields).
+  const productIds = [...new Set(order.lineItems.map((l) => l.productId).filter((p): p is string => Boolean(p)))];
+  const products = productIds.length ? await storefront.getProductsByIds(productIds).catch(() => []) : [];
+  const byId = new Map(products.map((p) => [p.id, p]));
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-neutral-900">{order.name}</h1>
-        <p className="text-sm text-neutral-500">
-          Placed {formatDate(order.processedAt)} &middot; {order.fulfillmentStatus}
-        </p>
-      </div>
-
-      <OrderLineItems lineItems={order.lineItems} onAddToFavourites={addToFavourites} />
-
-      <div className="flex flex-col gap-2 self-end text-sm">
-        {order.subtotal ? (
-          <div className="flex justify-between gap-12 text-neutral-600">
-            <span>Subtotal</span>
-            <span>{formatMoney(order.subtotal)}</span>
-          </div>
-        ) : null}
-        {order.totalTax ? (
-          <div className="flex justify-between gap-12 text-neutral-600">
-            <span>Tax</span>
-            <span>{formatMoney(order.totalTax)}</span>
-          </div>
-        ) : null}
-        <div className="flex justify-between gap-12 font-medium text-neutral-900">
-          <span>Total</span>
-          <span>{formatMoney(order.totalPrice)}</span>
-        </div>
-      </div>
-    </div>
+    <OrderDetailView
+      order={{
+        ...order,
+        lineItems: order.lineItems.map((l) => {
+          const p = l.productId ? byId.get(l.productId) : undefined;
+          return { ...l, creditEarned: p?.creditEarned ?? null, packLabel: p?.packLabel ?? null };
+        }),
+      }}
+      showCredit={SHOW_CREDIT}
+      onReorder={reorderLines}
+      onAddToFavourites={addOrderToFavourites}
+      reportHref={`/contact?order=${encodeURIComponent(order.name)}`}
+    />
   );
 }

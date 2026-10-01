@@ -127,6 +127,31 @@ export async function addToCart(merchandiseId: string, quantity = 1): Promise<Ca
   return addLines([{ merchandiseId, quantity }]);
 }
 
+/**
+ * Reorder: adds several lines at once. If Shopify rejects the batch (a product was archived or
+ * sold out), retries line by line so the rest still go in, and reports how many were skipped.
+ */
+export async function addManyToCart(lines: { merchandiseId: string; quantity: number }[]): Promise<{ cart: Cart; skipped: number }> {
+  if (lines.length === 0) throw new CartMutationError([{ field: null, message: "Nothing to add." }]);
+  try {
+    return { cart: await addLines(lines), skipped: 0 };
+  } catch (err) {
+    if (!(err instanceof CartMutationError) || lines.length === 1) throw err;
+    let cart: Cart | null = null;
+    let skipped = 0;
+    for (const line of lines) {
+      try {
+        cart = await addLines([line]);
+      } catch (e) {
+        if (!(e instanceof CartMutationError)) throw e;
+        skipped += 1;
+      }
+    }
+    if (!cart) throw err;
+    return { cart, skipped };
+  }
+}
+
 export async function updateCartLine(lineId: string, quantity: number): Promise<Cart | null> {
   const store = await cookies();
   const cartId = store.get(CART_COOKIE)?.value;

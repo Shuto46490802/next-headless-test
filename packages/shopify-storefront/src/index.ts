@@ -30,7 +30,12 @@ export * from "./commerce";
 export { StorefrontApiError } from "./client";
 import { USE_POINTS_ATTRIBUTE } from "./types";
 
-type RawProductSummary = Omit<ProductSummary, "pointsCost"> & { pointsCostMetafield: { value: string } | null };
+type RawProductSummary = Omit<ProductSummary, "pointsCost" | "creditEarned" | "packLabel"> & {
+  pointsCostMetafield: { value: string } | null;
+  creditEarnedMetafield: { value: string } | null;
+  unitSizeMetafield: { value: string } | null;
+  containerMetafield: { value: string } | null;
+};
 
 interface RawProductDetail extends RawProductSummary {
   descriptionHtml: string;
@@ -46,11 +51,38 @@ interface RawCollection extends CollectionSummary {
   };
 }
 
+type MetaValue = { value: string } | null;
 type RawCartLine = Omit<CartLine, "usePoints" | "merchandise"> & {
   merchandise: Omit<CartLine["merchandise"], "product"> & {
-    product: { handle: string; title: string; pointsCost: { value: string } | null };
+    product: {
+      id: string;
+      handle: string;
+      title: string;
+      vendor: string;
+      pointsCost: MetaValue;
+      brand: MetaValue;
+      creditEarned: MetaValue;
+      unitSize: MetaValue;
+      container: MetaValue;
+    };
   };
 };
+
+function parseMoneyMeta(raw: MetaValue): { amount: string; currencyCode: string } | null {
+  if (!raw?.value) return null;
+  try {
+    const v = JSON.parse(raw.value) as { amount?: string | number; currency_code?: string };
+    return v.amount != null && Number(v.amount) > 0 ? { amount: String(v.amount), currencyCode: v.currency_code ?? "AUD" } : null;
+  } catch {
+    return null;
+  }
+}
+
+function packLabel(unitSize: MetaValue, container: MetaValue): string | null {
+  const c = container?.value ? `${container.value.toUpperCase()}${/s$/i.test(container.value) ? "" : "S"}` : "";
+  const label = [unitSize?.value, c].filter(Boolean).join(" ");
+  return label || null;
+}
 type RawCart = Omit<Cart, "lines"> & { lines: { nodes: RawCartLine[] } };
 
 /** Parses an integer metafield value; anything non-numeric or non-positive is treated as absent. */
@@ -61,8 +93,13 @@ function parsePoints(raw: { value: string } | null | undefined): number | null {
 }
 
 function mapProductSummary(raw: RawProductSummary): ProductSummary {
-  const { pointsCostMetafield, ...rest } = raw;
-  return { ...rest, pointsCost: parsePoints(pointsCostMetafield) };
+  const { pointsCostMetafield, creditEarnedMetafield, unitSizeMetafield, containerMetafield, ...rest } = raw;
+  return {
+    ...rest,
+    pointsCost: parsePoints(pointsCostMetafield),
+    creditEarned: parseMoneyMeta(creditEarnedMetafield),
+    packLabel: packLabel(unitSizeMetafield, containerMetafield),
+  };
 }
 
 function mapCartLine(raw: RawCartLine): CartLine {
@@ -71,7 +108,18 @@ function mapCartLine(raw: RawCartLine): CartLine {
   return {
     ...rest,
     usePoints: raw.attributes.some((a) => a.key === USE_POINTS_ATTRIBUTE && a.value === "true"),
-    merchandise: { ...merch, product: { ...product, pointsCost: parsePoints(product.pointsCost) } },
+    merchandise: {
+      ...merch,
+      product: {
+        id: product.id,
+        handle: product.handle,
+        title: product.title,
+        brand: product.brand?.value || product.vendor,
+        pointsCost: parsePoints(product.pointsCost),
+        creditEarned: parseMoneyMeta(product.creditEarned),
+        packLabel: packLabel(product.unitSize, product.container),
+      },
+    },
   };
 }
 
@@ -121,10 +169,12 @@ export function createShopifyStorefront(config: StorefrontConfig) {
         { handle, buyer: buyer ?? null },
       );
       if (!data.product) return null;
-      const { images, variants, pointsCostMetafield, ...rest } = data.product;
+      const { images, variants, pointsCostMetafield, creditEarnedMetafield, unitSizeMetafield, containerMetafield, ...rest } = data.product;
       return {
         ...rest,
         pointsCost: parsePoints(pointsCostMetafield),
+        creditEarned: parseMoneyMeta(creditEarnedMetafield),
+        packLabel: packLabel(unitSizeMetafield, containerMetafield),
         images: images.nodes,
         variants: variants.nodes,
       };

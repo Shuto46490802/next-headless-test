@@ -23,6 +23,15 @@ export const PRODUCT_SUMMARY_FRAGMENT = /* GraphQL */ `
     pointsCostMetafield: metafield(namespace: "mindarc_poc", key: "points_cost") {
       value
     }
+    creditEarnedMetafield: metafield(namespace: "custom", key: "credit_earned") {
+      value
+    }
+    unitSizeMetafield: metafield(namespace: "custom", key: "unit_size") {
+      value
+    }
+    containerMetafield: metafield(namespace: "custom", key: "container") {
+      value
+    }
     featuredImage {
       ...ImageFields
     }
@@ -194,9 +203,23 @@ export const CART_FRAGMENT = /* GraphQL */ `
               ...ImageFields
             }
             product {
+              id
               handle
               title
+              vendor
               pointsCost: metafield(namespace: "mindarc_poc", key: "points_cost") {
+                value
+              }
+              brand: metafield(namespace: "custom", key: "brand") {
+                value
+              }
+              creditEarned: metafield(namespace: "custom", key: "credit_earned") {
+                value
+              }
+              unitSize: metafield(namespace: "custom", key: "unit_size") {
+                value
+              }
+              container: metafield(namespace: "custom", key: "container") {
                 value
               }
             }

@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { BrandConfig } from "../types";
 import type { CartActionResult, MiniCartData } from "../cart-events";
-import { MiniCart } from "./MiniCart";
+import { MiniCart, type MiniCartUpsell } from "./MiniCart";
+import { AccountMenu, type AccountMenuProps } from "../account/AccountMenu";
 import { CtaButton, Icon, SmartLink, type CmsCta, type CmsImage } from "../cms/primitives";
 import { PromoTile, type PromoTileProps } from "../cms/misc";
 import { HeaderSearch } from "../commerce/HeaderSearch";
@@ -35,6 +36,10 @@ export interface SiteHeaderProps {
   searchPlaceholder?: string;
   /** Show "Earns $X" on search overlay rows (Club Connect only). */
   searchShowCredit?: boolean;
+  /** Header Account button opens this panel; without it the button links to /account. */
+  accountMenu?: AccountMenuProps | null;
+  /** Mini cart presentation: credit lines, delivery label, empty copy, "Have you forgotten" tray. */
+  cartOptions?: { showCredit?: boolean; deliveryLabel?: string; emptyMessage?: string; upsell?: MiniCartUpsell | null };
   /** Partner Connect delivery state picker (header chip + popover / mobile sheet). */
   locationPicker?: StatePickerProps | null;
   /** Header chip: "Club Credit $1,284.00" (CC/PC) or points (DC). Data, not CMS. */
@@ -98,10 +103,16 @@ export function SiteHeader(p: SiteHeaderProps) {
         {p.locationPicker ? <StatePicker {...p.locationPicker} className="hidden md:block" /> : null}
         <nav className="ml-auto flex items-center gap-6 text-xs text-brand">
           <Link href="/account/favorites" className="flex flex-col items-center gap-1"><Icon name="heart" className="h-6 w-6" />Favourites</Link>
-          <Link href="/account" className="flex flex-col items-center gap-1"><Icon name="user" className="h-6 w-6" />Account</Link>
-          <div className="flex flex-col items-center gap-1">
-            <MiniCart initialCart={p.cart} checkoutHref={p.checkoutHref} onUpdateQuantity={p.cartActions.updateQuantity} onRemove={p.cartActions.remove} onTogglePoints={p.cartActions.togglePoints} points={p.points} />
-          </div>
+          {p.accountMenu ? <AccountMenu {...p.accountMenu} /> : <Link href="/account" className="flex flex-col items-center gap-1"><Icon name="user" className="h-6 w-6" />Account</Link>}
+          <MiniCart
+            initialCart={p.cart}
+            checkoutHref={p.checkoutHref}
+            onUpdateQuantity={p.cartActions.updateQuantity}
+            onRemove={p.cartActions.remove}
+            onTogglePoints={p.cartActions.togglePoints}
+            points={p.points}
+            {...p.cartOptions}
+          />
         </nav>
       </div>
       {p.locationPicker ? (

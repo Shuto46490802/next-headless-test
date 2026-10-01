@@ -30,6 +30,10 @@ export interface ProductSummary {
   pointsCost: number | null;
   /** Includes `state:<code>` availability tags (Partner Connect state picker). */
   tags: string[];
+  /** Per unit, `custom.credit_earned`. */
+  creditEarned: Money | null;
+  /** e.g. "330mL BOTTLES". */
+  packLabel: string | null;
 }
 
 export interface ProductDetail extends ProductSummary {
@@ -86,7 +90,17 @@ export interface CartLine {
     id: string;
     title: string;
     image: ImageNode | null;
-    product: { handle: string; title: string; pointsCost: number | null };
+    product: {
+      id: string;
+      handle: string;
+      title: string;
+      brand: string;
+      pointsCost: number | null;
+      /** Per unit, from `custom.credit_earned`. */
+      creditEarned: Money | null;
+      /** "330mL BOTTLES" style pack line from `custom.unit_size` + `custom.container`. */
+      packLabel: string | null;
+    };
     selectedOptions: { name: string; value: string }[];
   };
 }

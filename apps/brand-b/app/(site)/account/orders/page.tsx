@@ -1,38 +1,35 @@
-import Link from "next/link";
-import { EmptyState, formatMoney, formatDate } from "@repo/ui";
+import type { Metadata } from "next";
+import { OrdersLoadMore, OrdersTable, OrdersToolbar } from "@repo/ui";
 import { getValidAccessToken, requireSession } from "../../../../lib/session";
 import { customerAccount } from "../../../../lib/shopify";
+import { getAccountOverview } from "../../../../lib/account";
+import { reorderOrder } from "../../../account-actions";
 
-export default async function OrdersPage() {
-  const session = await requireSession();
-  const accessToken = await getValidAccessToken(session);
-  const { orders } = await customerAccount.listOrders(accessToken, { first: 20 });
+export const metadata: Metadata = { title: "Orders & invoices" };
+
+type Props = { searchParams: Promise<Record<string, string | undefined>> };
+
+/** Figma "Orders & invoices": search by order number, All users / Only mine, export, load more. */
+export default async function OrdersPage({ searchParams }: Props) {
+  const sp = await searchParams;
+  const token = await getValidAccessToken(await requireSession());
+  const account = await getAccountOverview();
+  const locationId = account?.company?.location?.id ?? null;
+  const scope = sp.scope === "mine" || !locationId ? "mine" : "company";
+  const q = (sp.q ?? "").replace(/\D/g, "");
+  const first = Math.min(Math.max(Number(sp.count) || 20, 20), 100);
+
+  const { orders, hasNextPage } = await customerAccount.listAccountOrders(token, { scope, locationId, first, query: q ? `name:${q}` : null });
 
   return (
-    <div>
-      <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Orders</h1>
-      {orders.length === 0 ? (
-        <EmptyState title="No orders yet" description="Your past orders will show up here." />
-      ) : (
-        <div className="flex flex-col divide-y divide-neutral-200 rounded-2xl border border-neutral-200">
-          {orders.map((order) => (
-            <Link
-              key={order.id}
-              href={`/account/orders/${encodeURIComponent(order.id)}`}
-              className="flex items-center justify-between px-4 py-4 hover:bg-neutral-50"
-            >
-              <div className="flex flex-col">
-                <span className="font-medium text-neutral-900">{order.name}</span>
-                <span className="text-sm text-neutral-500">{formatDate(order.processedAt)}</span>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="font-medium text-neutral-900">{formatMoney(order.totalPrice)}</span>
-                <span className="text-sm text-neutral-500">{order.fulfillmentStatus}</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <p className="text-xs font-medium uppercase text-neutral-500">My account</p>
+        <h2 className="font-heading text-3xl font-bold text-brand">Orders &amp; invoices</h2>
+      </div>
+      <OrdersToolbar orders={orders} canSeeAll={Boolean(locationId)} />
+      {orders.length === 0 && q ? <p className="py-8 text-center text-sm text-neutral-500">No orders match #{q}.</p> : <OrdersTable orders={orders} onReorder={reorderOrder} />}
+      <OrdersLoadMore shown={orders.length} hasNextPage={hasNextPage} />
     </div>
   );
 }

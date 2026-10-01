@@ -47,7 +47,7 @@ export default async function AddressesPage() {
   return (
     <div className="flex flex-col gap-10">
       <div>
-        <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Addresses</h1>
+        <h2 className="mb-6 font-heading text-3xl font-bold text-brand">Addresses</h2>
         {addresses.length === 0 ? (
           <EmptyState title="No addresses yet" description="Add one below." />
         ) : (

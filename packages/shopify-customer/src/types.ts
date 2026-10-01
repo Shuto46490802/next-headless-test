@@ -73,3 +73,87 @@ export interface CompanyLocationAccess {
   /** True when the role name contains "admin" (Shopify's built-in "Location admin"). */
   isAdmin: boolean;
 }
+
+/* ---------------------------------------------------------------- account pages */
+
+/** The signed-in customer, their club (company) and the credit metafields the backend writes. */
+export interface AccountOverview {
+  customerId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+  phone: string | null;
+  /** Company contact title, e.g. "Treasurer". */
+  title: string | null;
+  company: {
+    id: string;
+    name: string;
+    /** Asahi account number (company external ID). */
+    accountNumber: string | null;
+    location: { id: string; name: string } | null;
+    /** `custom.credit_balance` etc. Null when the backend hasn't written them. */
+    creditBalance: Money | null;
+    creditPending: Money | null;
+    creditDonated: Money | null;
+    referralCode: string | null;
+    accountStatus: string | null;
+  } | null;
+}
+
+export type ShipmentStatus = "CONFIRMED" | "IN_TRANSIT" | "OUT_FOR_DELIVERY" | "DELIVERED" | "ATTEMPTED_DELIVERY" | "FAILURE" | string;
+
+export interface AccountFulfillment {
+  status: string | null;
+  latestShipmentStatus: ShipmentStatus | null;
+  createdAt?: string;
+  updatedAt: string;
+  tracking: { number: string | null; url: string | null; company: string | null }[];
+  events?: { status: string; happenedAt: string }[];
+}
+
+export interface AccountOrderRow {
+  id: string;
+  name: string;
+  number: number;
+  processedAt: string;
+  financialStatus: string | null;
+  fulfillmentStatus: string;
+  totalPrice: Money;
+  orderedBy: string | null;
+  fulfillments: AccountFulfillment[];
+}
+
+export interface AccountOrderAddress {
+  firstName: string | null;
+  lastName: string | null;
+  company: string | null;
+  address1: string | null;
+  address2: string | null;
+  city: string | null;
+  zoneCode: string | null;
+  zip: string | null;
+  territoryCode: string | null;
+}
+
+export interface AccountOrderDetail extends Omit<AccountOrderRow, "number"> {
+  updatedAt: string;
+  note: string | null;
+  subtotal: Money | null;
+  totalTax: Money | null;
+  totalShipping: Money | null;
+  discounts: { code: string | null; amount: Money | null; percentage: number | null }[];
+  paymentMethod: string | null;
+  shippingAddress: AccountOrderAddress | null;
+  billingAddress: AccountOrderAddress | null;
+  shippingMethod: string | null;
+  lineItems: {
+    id: string;
+    title: string;
+    variantTitle: string | null;
+    quantity: number;
+    productId: string | null;
+    variantId: string | null;
+    totalPrice: Money | null;
+    image: { url: string; altText: string | null } | null;
+  }[];
+}

@@ -10,10 +10,10 @@ export default async function FavoritesPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-neutral-900">Favorites</h1>
+      <h2 className="mb-6 font-heading text-3xl font-bold text-brand">Shopping lists</h2>
       {products.length === 0 ? (
         <EmptyState
-          title="No favorites yet"
+          title="No saved products yet"
           description="Tap the heart on any product to save it here."
         />
       ) : (

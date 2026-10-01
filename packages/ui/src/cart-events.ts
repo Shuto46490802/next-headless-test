@@ -12,7 +12,17 @@ export interface MiniCartLine {
   merchandise: {
     title: string;
     image: { url: string; altText: string | null } | null;
-    product: { handle: string; title: string; pointsCost?: number | null };
+    product: {
+      id?: string;
+      handle: string;
+      title: string;
+      brand?: string;
+      pointsCost?: number | null;
+      /** Per unit (`custom.credit_earned`). */
+      creditEarned?: { amount: string; currencyCode: string } | null;
+      /** e.g. "330mL BOTTLES". */
+      packLabel?: string | null;
+    };
     selectedOptions: { name: string; value: string }[];
   };
 }
@@ -48,4 +58,19 @@ export function cartPoints(cart: MiniCartData | null): number {
     const cost = l.merchandise.product.pointsCost;
     return l.usePoints && cost != null ? sum + cost * l.quantity : sum;
   }, 0);
+}
+
+/** Club credit the cart earns: credit_earned × quantity over all lines. */
+export function cartCredit(cart: MiniCartData | null): { amount: string; currencyCode: string } | null {
+  if (!cart) return null;
+  let total = 0;
+  let currencyCode = cart.cost.subtotalAmount.currencyCode;
+  for (const l of cart.lines) {
+    const c = l.merchandise.product.creditEarned;
+    if (c) {
+      total += Number(c.amount) * l.quantity;
+      currencyCode = c.currencyCode;
+    }
+  }
+  return total > 0 ? { amount: total.toFixed(2), currencyCode } : null;
 }
