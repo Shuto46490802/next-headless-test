@@ -5,7 +5,7 @@ import { SORT_OPTIONS } from "@repo/shopify-storefront";
 import { storefront } from "../../../lib/shopify";
 import { getSession } from "../../../lib/session";
 import { getFavouriteIds } from "../../../lib/favorites";
-import { SHOW_CREDIT, readListingParams, type ListingSearchParams } from "../../../lib/listing";
+import { SHOW_CREDIT, getBuyer, readListingParams, type ListingSearchParams } from "../../../lib/listing";
 import { addToCartAction } from "../../product-actions";
 
 export const metadata: Metadata = { title: "All products" };
@@ -16,13 +16,14 @@ export default async function AllProductsPage({ searchParams }: { searchParams: 
   const { filters, sort, first, q } = readListingParams(sp);
   if (q) redirect(`/search?q=${encodeURIComponent(q)}`);
 
+  const buyer = await getBuyer();
   const [listing, session, favouriteIds] = await Promise.all([
-    storefront.getCollectionListing("all", { filters, sort, first }).catch(() => null),
+    storefront.getCollectionListing("all", { filters, sort, first, buyer }).catch(() => null),
     getSession(),
     getFavouriteIds(),
   ]);
   // Without an "all" collection in the store, fall back to best sellers (no facets).
-  const fallback = listing ? null : await storefront.getPopularProducts(first);
+  const fallback = listing ? null : await storefront.getPopularProducts(first, buyer);
 
   return (
     <>

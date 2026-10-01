@@ -5,7 +5,7 @@ import { SORT_OPTIONS } from "@repo/shopify-storefront";
 import { storefront } from "../../../../lib/shopify";
 import { getSession } from "../../../../lib/session";
 import { getFavouriteIds } from "../../../../lib/favorites";
-import { SHOW_CREDIT, readListingParams, type ListingSearchParams } from "../../../../lib/listing";
+import { SHOW_CREDIT, getBuyer, readListingParams, type ListingSearchParams } from "../../../../lib/listing";
 import { addToCartAction } from "../../../product-actions";
 
 type Props = { params: Promise<{ handle: string }>; searchParams: Promise<ListingSearchParams> };
@@ -23,8 +23,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function CollectionPage({ params, searchParams }: Props) {
   const [{ handle }, sp] = await Promise.all([params, searchParams]);
   const { filters, sort, first } = readListingParams(sp);
+  const buyer = await getBuyer();
   const [listing, session, favouriteIds] = await Promise.all([
-    storefront.getCollectionListing(handle, { filters, sort, first }),
+    storefront.getCollectionListing(handle, { filters, sort, first, buyer }),
     getSession(),
     getFavouriteIds(),
   ]);

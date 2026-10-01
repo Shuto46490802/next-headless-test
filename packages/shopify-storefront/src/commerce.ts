@@ -234,6 +234,35 @@ export interface ListingOptions {
   sort?: SortValue;
   /** Products to show; "Load more" raises it in steps of 24. Max 250. */
   first?: number;
+  buyer?: BuyerInput | null;
+}
+
+/**
+ * B2B buyer for `@inContext(buyer:)`: with the company location, prices and availability come
+ * from that location's catalog (the same context the cart uses). Responses that carry a buyer
+ * are personalised and must not be cached for other visitors.
+ */
+export interface BuyerInput {
+  customerAccessToken: string;
+  companyLocationId?: string | null;
+}
+
+/**
+ * Wraps a client so a stale or rejected customer token can't take a page down: a query sent with
+ * a `buyer` variable that fails is retried once without it (public pricing) and logged.
+ */
+export function withBuyerFallback(storefrontClient: StorefrontClient): StorefrontClient {
+  return {
+    async request<TData, TVariables extends Record<string, unknown> = Record<string, unknown>>(query: string, variables?: TVariables, init?: RequestInit) {
+      try {
+        return await storefrontClient.request<TData, TVariables>(query, variables, init);
+      } catch (err) {
+        if (!variables?.buyer) throw err;
+        console.warn("Storefront query with buyer context failed; retrying without it", err);
+        return storefrontClient.request<TData, TVariables>(query, { ...variables, buyer: null }, init);
+      }
+    },
+  };
 }
 
 export function createCommerceQueries(client: StorefrontClient) {
@@ -253,6 +282,7 @@ export function createCommerceQueries(client: StorefrontClient) {
         filters: opts.filters?.length ? opts.filters : null,
         sortKey,
         reverse,
+        buyer: opts.buyer ?? null,
       });
       if (!data.collection) return null;
       const { products, ...collection } = data.collection;
@@ -277,6 +307,7 @@ export function createCommerceQueries(client: StorefrontClient) {
         productFilters: opts.filters?.length ? opts.filters : null,
         sortKey,
         reverse,
+        buyer: opts.buyer ?? null,
       });
       return {
         products: data.search.nodes.filter((n): n is RawTile => "id" in n).map(mapTile),
@@ -286,10 +317,10 @@ export function createCommerceQueries(client: StorefrontClient) {
       };
     },
 
-    async predictiveSearch(query: string): Promise<PredictiveResults> {
+    async predictiveSearch(query: string, buyer?: BuyerInput | null): Promise<PredictiveResults> {
       const data = await client.request<{
         predictiveSearch: { queries: { text: string }[]; collections: { handle: string; title: string }[]; products: RawTile[] } | null;
-      }>(PREDICTIVE_SEARCH_QUERY, { query });
+      }>(PREDICTIVE_SEARCH_QUERY, { query, buyer: buyer ?? null });
       const r = data.predictiveSearch;
       return {
         queries: r?.queries.map((q) => q.text) ?? [],
@@ -298,23 +329,23 @@ export function createCommerceQueries(client: StorefrontClient) {
       };
     },
 
-    async countSearchResults(query: string): Promise<number> {
-      const data = await client.request<{ search: { totalCount: number } }>(SEARCH_COUNT_QUERY, { query });
+    async countSearchResults(query: string, buyer?: BuyerInput | null): Promise<number> {
+      const data = await client.request<{ search: { totalCount: number } }>(SEARCH_COUNT_QUERY, { query, buyer: buyer ?? null });
       return data.search.totalCount;
     },
 
-    async getProductRecommendations(productId: string, limit = 4): Promise<TileProduct[]> {
-      const data = await client.request<{ productRecommendations: RawTile[] | null }>(PRODUCT_RECOMMENDATIONS_QUERY, { productId });
+    async getProductRecommendations(productId: string, limit = 4, buyer?: BuyerInput | null): Promise<TileProduct[]> {
+      const data = await client.request<{ productRecommendations: RawTile[] | null }>(PRODUCT_RECOMMENDATIONS_QUERY, { productId, buyer: buyer ?? null });
       return (data.productRecommendations ?? []).slice(0, limit).map(mapTile);
     },
 
-    async getPopularProducts(first = 4): Promise<TileProduct[]> {
-      const data = await client.request<{ products: { nodes: RawTile[] } }>(POPULAR_PRODUCTS_QUERY, { first });
+    async getPopularProducts(first = 4, buyer?: BuyerInput | null): Promise<TileProduct[]> {
+      const data = await client.request<{ products: { nodes: RawTile[] } }>(POPULAR_PRODUCTS_QUERY, { first, buyer: buyer ?? null });
       return data.products.nodes.map(mapTile);
     },
 
-    async getProductPage(handle: string): Promise<ProductPageData | null> {
-      const data = await client.request<{ product: RawPage | null }>(PRODUCT_PAGE_QUERY, { handle });
+    async getProductPage(handle: string, buyer?: BuyerInput | null): Promise<ProductPageData | null> {
+      const data = await client.request<{ product: RawPage | null }>(PRODUCT_PAGE_QUERY, { handle, buyer: buyer ?? null });
       const p = data.product;
       if (!p) return null;
       const specs: Record<string, string> = {};

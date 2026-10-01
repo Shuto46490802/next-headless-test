@@ -10,6 +10,7 @@ import {
 export { toCta, toFooter, toLoggedOutNav, toNavigation };
 import { contentful } from "../lib/contentful";
 import { storefront } from "../lib/shopify";
+import { getBuyer } from "../lib/listing";
 
 export interface SectionContext {
   isLoggedIn: boolean;
@@ -49,8 +50,9 @@ export async function Section({ section, ctx }: { section: PageSection; ctx: Sec
       const active = ctx.searchParams.rail ?? rail.shopifyHandle ?? rail.tabs[0]?.handle ?? ctx.defaultCollectionHandle;
       // buyAgain / related / complementary need order or product context; the proof of concept
       // falls back to the storefront's product list so the band still renders.
-      const collection = rail.source === "collection" && active ? await storefront.getCollection(active, { first: rail.limit }).catch(() => null) : null;
-      const products = collection ? collection.products.items : await storefront.listProducts({ first: rail.limit }).then((r) => r.items).catch(() => []);
+      const buyer = await getBuyer();
+      const collection = rail.source === "collection" && active ? await storefront.getCollection(active, { first: rail.limit, buyer }).catch(() => null) : null;
+      const products = collection ? collection.products.items : await storefront.listProducts({ first: rail.limit, buyer }).then((r) => r.items).catch(() => []);
       const slots = rail.promoTile ? Math.max(rail.limit - 1, 1) : rail.limit;
       return (
         <ProductRail

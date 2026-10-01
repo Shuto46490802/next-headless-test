@@ -4,7 +4,7 @@ import { SORT_OPTIONS } from "@repo/shopify-storefront";
 import { storefront } from "../../../lib/shopify";
 import { getSession } from "../../../lib/session";
 import { getFavouriteIds } from "../../../lib/favorites";
-import { SHOW_CREDIT, readListingParams, type ListingSearchParams } from "../../../lib/listing";
+import { SHOW_CREDIT, getBuyer, readListingParams, type ListingSearchParams } from "../../../lib/listing";
 import { addToCartAction } from "../../product-actions";
 
 type Props = { searchParams: Promise<ListingSearchParams> };
@@ -41,12 +41,13 @@ export default async function SearchPage({ searchParams }: Props) {
     );
   }
 
-  const results = await storefront.searchProducts(q, { filters, sort, first });
+  const buyer = await getBuyer();
+  const results = await storefront.searchProducts(q, { filters, sort, first, buyer });
 
   // Nothing matches the term at all (not just the current filters): no-results state.
   if (results.totalCount === 0 && filters.length === 0) {
     const [popular, categories] = await Promise.all([
-      storefront.getPopularProducts(4).catch(() => []),
+      storefront.getPopularProducts(4, buyer).catch(() => []),
       storefront.listCollections(10).catch(() => []),
     ]);
     return (

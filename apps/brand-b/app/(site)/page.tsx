@@ -5,6 +5,7 @@ import { storefront } from "../../lib/shopify";
 import { contentful, contentfulEnabled } from "../../lib/contentful";
 import { getSession } from "../../lib/session";
 import { getFavouriteIds } from "../../lib/favorites";
+import { getBuyer } from "../../lib/listing";
 import { PageSections } from "../sections";
 import { getSiteLogo } from "../site-settings";
 
@@ -27,7 +28,7 @@ export default async function HomePage({ searchParams }: { searchParams: SearchP
   }
 
   // No Contentful page for this site (or Contentful not configured): static fallback layout.
-  const featuredProducts = await storefront.listProducts({ first: 8 }).then((r) => r.items).catch(() => []);
+  const featuredProducts = await storefront.listProducts({ first: 8, buyer: await getBuyer() }).then((r) => r.items).catch(() => []);
   return (
     <>
       <Hero brand={brand} collectionHandle={collections[0]?.handle} />

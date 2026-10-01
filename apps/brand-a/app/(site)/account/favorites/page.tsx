@@ -1,11 +1,12 @@
 import { ProductCard, EmptyState } from "@repo/ui";
 import { requireSession } from "../../../../lib/session";
 import { customerData, storefront } from "../../../../lib/shopify";
+import { getBuyer } from "../../../../lib/listing";
 
 export default async function FavoritesPage() {
   const session = await requireSession();
   const favouriteIds = await customerData.getFavourites(session.customerId);
-  const products = await storefront.getProductsByIds(favouriteIds);
+  const products = await storefront.getProductsByIds(favouriteIds, await getBuyer());
 
   return (
     <div>

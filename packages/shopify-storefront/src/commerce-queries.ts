@@ -89,7 +89,8 @@ export const COLLECTION_LISTING_QUERY = /* GraphQL */ `
     $filters: [ProductFilter!]
     $sortKey: ProductCollectionSortKeys
     $reverse: Boolean
-  ) {
+    $buyer: BuyerInput
+  ) @inContext(buyer: $buyer) {
     collection(handle: $handle) {
       id
       handle
@@ -124,7 +125,8 @@ export const SEARCH_PRODUCTS_QUERY = /* GraphQL */ `
     $productFilters: [ProductFilter!]
     $sortKey: SearchSortKeys
     $reverse: Boolean
-  ) {
+    $buyer: BuyerInput
+  ) @inContext(buyer: $buyer) {
     search(
       query: $query
       first: $first
@@ -155,7 +157,7 @@ export const SEARCH_PRODUCTS_QUERY = /* GraphQL */ `
 `;
 
 export const PREDICTIVE_SEARCH_QUERY = /* GraphQL */ `
-  query PredictiveSearch($query: String!) {
+  query PredictiveSearch($query: String! $buyer: BuyerInput) @inContext(buyer: $buyer) {
     predictiveSearch(query: $query, limit: 6, limitScope: EACH, types: [QUERY, COLLECTION, PRODUCT], unavailableProducts: LAST) {
       queries {
         text
@@ -173,7 +175,7 @@ export const PREDICTIVE_SEARCH_QUERY = /* GraphQL */ `
 `;
 
 export const PRODUCT_RECOMMENDATIONS_QUERY = /* GraphQL */ `
-  query ProductRecommendations($productId: ID!) {
+  query ProductRecommendations($productId: ID! $buyer: BuyerInput) @inContext(buyer: $buyer) {
     productRecommendations(productId: $productId, intent: RELATED) {
       ...ProductTileFields
     }
@@ -182,7 +184,7 @@ export const PRODUCT_RECOMMENDATIONS_QUERY = /* GraphQL */ `
 `;
 
 export const POPULAR_PRODUCTS_QUERY = /* GraphQL */ `
-  query PopularProducts($first: Int!) {
+  query PopularProducts($first: Int! $buyer: BuyerInput) @inContext(buyer: $buyer) {
     products(first: $first, sortKey: BEST_SELLING) {
       nodes {
         ...ProductTileFields
@@ -193,7 +195,7 @@ export const POPULAR_PRODUCTS_QUERY = /* GraphQL */ `
 `;
 
 export const PRODUCT_PAGE_QUERY = /* GraphQL */ `
-  query ProductPage($handle: String!) {
+  query ProductPage($handle: String! $buyer: BuyerInput) @inContext(buyer: $buyer) {
     product(handle: $handle) {
       ...ProductTileFields
       descriptionHtml
@@ -256,7 +258,7 @@ export const PRODUCT_PAGE_QUERY = /* GraphQL */ `
 
 /** Match count for the search overlay's "N matches" / "See all N results" (predictiveSearch has no count). */
 export const SEARCH_COUNT_QUERY = /* GraphQL */ `
-  query SearchCount($query: String!) {
+  query SearchCount($query: String! $buyer: BuyerInput) @inContext(buyer: $buyer) {
     search(query: $query, first: 1, types: [PRODUCT], prefix: LAST, unavailableProducts: LAST) {
       totalCount
     }

@@ -1,5 +1,5 @@
 import { createStorefrontClient, type StorefrontConfig } from "./client";
-import { createCommerceQueries } from "./commerce";
+import { createCommerceQueries, withBuyerFallback, type BuyerInput } from "./commerce";
 import {
   CART_BUYER_IDENTITY_UPDATE_MUTATION,
   CART_CREATE_MUTATION,
@@ -109,16 +109,16 @@ function unwrapCart(payload: CartPayload): Cart {
 }
 
 export function createShopifyStorefront(config: StorefrontConfig) {
-  const client = createStorefrontClient(config);
+  const client = withBuyerFallback(createStorefrontClient(config));
 
   return {
     client,
     ...createCommerceQueries(client),
 
-    async getProduct(handle: string): Promise<ProductDetail | null> {
+    async getProduct(handle: string, buyer?: BuyerInput | null): Promise<ProductDetail | null> {
       const data = await client.request<{ product: RawProductDetail | null }>(
         PRODUCT_DETAIL_QUERY,
-        { handle },
+        { handle, buyer: buyer ?? null },
       );
       if (!data.product) return null;
       const { images, variants, pointsCostMetafield, ...rest } = data.product;
@@ -131,30 +131,30 @@ export function createShopifyStorefront(config: StorefrontConfig) {
     },
 
     async listProducts(
-      opts: { first?: number; after?: string } = {},
+      opts: { first?: number; after?: string; buyer?: BuyerInput | null } = {},
     ): Promise<{ items: ProductSummary[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } }> {
       const data = await client.request<{
         products: { nodes: RawProductSummary[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } };
-      }>(PRODUCTS_QUERY, { first: opts.first ?? 24, after: opts.after ?? null });
+      }>(PRODUCTS_QUERY, { first: opts.first ?? 24, after: opts.after ?? null, buyer: opts.buyer ?? null });
       return { items: data.products.nodes.map(mapProductSummary), pageInfo: data.products.pageInfo };
     },
 
-    async getProductsByIds(ids: string[]): Promise<ProductSummary[]> {
+    async getProductsByIds(ids: string[], buyer?: BuyerInput | null): Promise<ProductSummary[]> {
       if (ids.length === 0) return [];
       const data = await client.request<{ nodes: (RawProductSummary | null)[] }>(
         PRODUCTS_BY_IDS_QUERY,
-        { ids },
+        { ids, buyer: buyer ?? null },
       );
       return data.nodes.filter((n): n is RawProductSummary => n !== null).map(mapProductSummary);
     },
 
     async getCollection(
       handle: string,
-      opts: { first?: number; after?: string } = {},
+      opts: { first?: number; after?: string; buyer?: BuyerInput | null } = {},
     ): Promise<CollectionWithProducts | null> {
       const data = await client.request<{ collection: RawCollection | null }>(
         COLLECTION_QUERY,
-        { handle, first: opts.first ?? 24, after: opts.after ?? null },
+        { handle, first: opts.first ?? 24, after: opts.after ?? null, buyer: opts.buyer ?? null },
       );
       if (!data.collection) return null;
       const { products, ...rest } = data.collection;

@@ -39,7 +39,7 @@ export const PRODUCT_SUMMARY_FRAGMENT = /* GraphQL */ `
 `;
 
 export const PRODUCT_DETAIL_QUERY = /* GraphQL */ `
-  query ProductByHandle($handle: String!) {
+  query ProductByHandle($handle: String!, $buyer: BuyerInput) @inContext(buyer: $buyer) {
     product(handle: $handle) {
       ...ProductSummaryFields
       descriptionHtml
@@ -78,7 +78,7 @@ export const PRODUCT_DETAIL_QUERY = /* GraphQL */ `
 `;
 
 export const PRODUCTS_QUERY = /* GraphQL */ `
-  query Products($first: Int!, $after: String) {
+  query Products($first: Int!, $after: String, $buyer: BuyerInput) @inContext(buyer: $buyer) {
     products(first: $first, after: $after) {
       nodes {
         ...ProductSummaryFields
@@ -93,7 +93,7 @@ export const PRODUCTS_QUERY = /* GraphQL */ `
 `;
 
 export const PRODUCTS_BY_IDS_QUERY = /* GraphQL */ `
-  query ProductsByIds($ids: [ID!]!) {
+  query ProductsByIds($ids: [ID!]!, $buyer: BuyerInput) @inContext(buyer: $buyer) {
     nodes(ids: $ids) {
       ... on Product {
         ...ProductSummaryFields
@@ -104,7 +104,7 @@ export const PRODUCTS_BY_IDS_QUERY = /* GraphQL */ `
 `;
 
 export const COLLECTION_QUERY = /* GraphQL */ `
-  query CollectionByHandle($handle: String!, $first: Int!, $after: String) {
+  query CollectionByHandle($handle: String!, $first: Int!, $after: String, $buyer: BuyerInput) @inContext(buyer: $buyer) {
     collection(handle: $handle) {
       id
       handle

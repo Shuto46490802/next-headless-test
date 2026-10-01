@@ -4,7 +4,7 @@ import { Breadcrumb, ProductAbout, ProductDetail, ProductRailSection, SpecGrid }
 import { storefront } from "../../../../lib/shopify";
 import { getSession } from "../../../../lib/session";
 import { getFavouriteIds } from "../../../../lib/favorites";
-import { SHOW_CREDIT } from "../../../../lib/listing";
+import { SHOW_CREDIT, getBuyer } from "../../../../lib/listing";
 import { addToCartAction } from "../../../product-actions";
 
 type Props = { params: Promise<{ handle: string }> };
@@ -24,13 +24,14 @@ const withUnit = (v: string | undefined, unit: string) => (v ? `${v}${unit}` : u
  */
 export default async function ProductPage({ params }: Props) {
   const { handle } = await params;
-  const product = await storefront.getProductPage(handle);
+  const buyer = await getBuyer();
+  const product = await storefront.getProductPage(handle, buyer);
   if (!product) notFound();
 
   const [session, favouriteIds, related] = await Promise.all([
     getSession(),
     getFavouriteIds(),
-    storefront.getProductRecommendations(product.id, 4).catch(() => []),
+    storefront.getProductRecommendations(product.id, 4, buyer).catch(() => []),
   ]);
   const isLoggedIn = Boolean(session);
   const s = product.specs;
