@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { ArticleView, LivePreviewBridge, SiteFooter, SiteHeader } from "@repo/ui";
 import { brand } from "../../../lib/brand";
-import { storefront } from "../../../lib/shopify";
 import { contentful, contentfulEnabled } from "../../../lib/contentful";
 import { removeCartLineAction, updateCartLineAction } from "../../cart-actions";
 import { PageSections, toCta, toFooter, toLoggedOutNav, toNavigation } from "../../sections";
@@ -28,7 +27,7 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
   const audience = sp.audience === "loggedOut" ? "loggedOut" : "signedIn";
   const isLoggedIn = audience === "signedIn";
   const slug = sp.slug && sp.slug !== "" ? sp.slug : "/";
-  const [settings, collections] = await Promise.all([getSiteSettings(true), storefront.listCollections(1).catch(() => [])]);
+  const settings = await getSiteSettings(true);
 
   let body: React.ReactNode;
   let focus: string | null = null;
@@ -40,7 +39,7 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
       body = (
         <PageSections
           sections={hit.page.sections}
-          ctx={{ isLoggedIn: pageAudience === "signedIn", favouriteIds: new Set(), showPoints: false, preview: true, siteLogo: settings?.logo ?? null, searchParams: sp, defaultCollectionHandle: collections[0]?.handle }}
+          ctx={{ isLoggedIn: pageAudience === "signedIn", favouriteIds: new Set(), showPoints: false, preview: true, siteLogo: settings?.logo ?? null, searchParams: sp }}
         />
       );
     } else {
@@ -54,7 +53,7 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
     body = page ? (
       <PageSections
         sections={page.sections}
-        ctx={{ isLoggedIn, favouriteIds: new Set(), showPoints: false, preview: true, siteLogo: settings?.logo ?? null, searchParams: sp, defaultCollectionHandle: collections[0]?.handle }}
+        ctx={{ isLoggedIn, favouriteIds: new Set(), showPoints: false, preview: true, siteLogo: settings?.logo ?? null, searchParams: sp }}
       />
     ) : (
       <Missing what={`page "${slug}" for audience ${audience}`} />
@@ -77,7 +76,6 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
         balance={isLoggedIn ? { label: "Credit", value: "$1,284.00" } : null}
         cart={null}
         cartActions={{ updateQuantity: updateCartLineAction, remove: removeCartLineAction }}
-        collections={collections.map((c) => ({ handle: c.handle, title: c.title }))}
       />
       <main className="flex-1">{body}</main>
       <SiteFooter brand={brand} logo={settings?.logo ?? null} {...(toFooter(settings) ?? {})} />

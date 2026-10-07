@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { draftMode } from "next/headers";
 import { AgeGate, PreviewBanner, SiteFooter, SiteHeader, formatMoney } from "@repo/ui";
 import { brand } from "../../lib/brand";
-import { storefront } from "../../lib/shopify";
 import { getSession } from "../../lib/session";
 import { getCart } from "../../lib/cart";
 import { removeCartLineAction, updateCartLineAction } from "../cart-actions";
@@ -22,7 +21,7 @@ import { addToCartAction } from "../product-actions";
 export default async function SiteLayout({ children }: { children: ReactNode }) {
   const { isEnabled: isPreview } = await draftMode();
   const settings = await getSiteSettings(isPreview);
-  const [collections, session, cart] = await Promise.all([storefront.listCollections(8).catch(() => []), getSession(), getCart()]);
+  const [session, cart] = await Promise.all([getSession(), getCart()]);
 
   const isLoggedIn = Boolean(session);
   const [location, account, ageGate] = await Promise.all([
@@ -81,7 +80,6 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
         }
         checkoutHref="/api/checkout"
         balance={credit ? { label: ACCOUNT_COPY.creditLabel, value: formatMoney(credit) } : null}
-        collections={collections.map((c) => ({ handle: c.handle, title: c.title }))}
       />
       <main className="flex-1">
         {isPreview ? <PreviewBanner exitHref="/api/preview/exit" /> : null}

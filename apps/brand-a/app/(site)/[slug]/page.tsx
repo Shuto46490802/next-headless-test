@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { draftMode } from "next/headers";
 import { notFound } from "next/navigation";
-import { storefront } from "../../../lib/shopify";
 import { contentful, contentfulEnabled } from "../../../lib/contentful";
 import { getSession } from "../../../lib/session";
 import { getFavouriteIds } from "../../../lib/favorites";
@@ -26,12 +25,12 @@ export default async function ContentPage({ params, searchParams }: { params: Pa
   const session = await getSession();
   const page = contentfulEnabled ? await contentful.getPage(slug, session ? "signedIn" : "loggedOut", { preview }).catch(() => null) : null;
   if (!page) notFound();
-  const [, favouriteIds, collections] = await Promise.all([getSession(), getFavouriteIds(), storefront.listCollections(1).catch(() => [])]);
+  const favouriteIds = await getFavouriteIds();
 
   return (
     <PageSections
       sections={page.sections}
-      ctx={{ isLoggedIn: Boolean(session), favouriteIds, showPoints: false, preview, siteLogo: await getSiteLogo(preview), searchParams: sp, defaultCollectionHandle: collections[0]?.handle }}
+      ctx={{ isLoggedIn: Boolean(session), favouriteIds, showPoints: false, preview, siteLogo: await getSiteLogo(preview), searchParams: sp }}
     />
   );
 }

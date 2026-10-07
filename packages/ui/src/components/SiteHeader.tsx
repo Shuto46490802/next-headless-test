@@ -48,8 +48,6 @@ export interface SiteHeaderProps {
   cartActions: SiteHeaderCartActions;
   checkoutHref?: string;
   points?: { enabled: boolean; balance: number | null } | null;
-  /** Fallback nav when no CMS navigation exists. */
-  collections?: { handle: string; title: string }[];
 }
 
 function Logo({ brand, logo }: { brand: BrandConfig; logo?: CmsImage | null }) {
@@ -123,17 +121,13 @@ export function SiteHeader(p: SiteHeaderProps) {
       <div className="px-4 py-3 md:hidden">
         <HeaderSearch placeholder={p.searchPlaceholder} showCredit={p.searchShowCredit} />
       </div>
-      <nav className="bg-brand text-white" aria-label="Categories">
-        <ul className="mx-auto flex max-w-[1440px] items-center gap-2 overflow-x-auto px-4 sm:px-8">
-          {cmsNav
-            ? cmsNav.map((item, i) => <li key={item.id}><MegaNavItem item={item} first={i === 0} /></li>)
-            : [{ handle: "", title: "All products" }, ...(p.collections ?? [])].map((c, i) => (
-                <li key={c.handle || "all"}>
-                  <Link href={c.handle ? `/collections/${c.handle}` : "/products"} className={`block whitespace-nowrap px-4 py-3.5 text-sm hover:bg-white/10 ${i === 0 ? "border-b-2 border-accent" : ""}`}>{c.title}</Link>
-                </li>
-              ))}
-        </ul>
-      </nav>
+      {cmsNav ? (
+        <nav className="bg-brand text-white" aria-label="Categories">
+          <ul className="mx-auto flex max-w-[1440px] items-center gap-2 overflow-x-auto px-4 sm:px-8">
+            {cmsNav.map((item, i) => <li key={item.id}><MegaNavItem item={item} first={i === 0} /></li>)}
+          </ul>
+        </nav>
+      ) : null}
     </header>
   );
 }

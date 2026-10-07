@@ -4,7 +4,6 @@ export * from "./components/Button";
 export * from "./components/FormField";
 export * from "./components/FavoriteButton";
 export * from "./components/ProductCard";
-export * from "./components/Hero";
 export * from "./components/AccountNav";
 export * from "./components/EmptyState";
 export * from "./components/OrderLineItems";

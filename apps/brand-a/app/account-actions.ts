@@ -6,7 +6,6 @@ import { orderStatus, type AccountFormState, type MiniCartData } from "@repo/ui"
 import { addManyToCart } from "../lib/cart";
 import { getValidAccessToken, requireSession } from "../lib/session";
 import { customerAccount } from "../lib/shopify";
-import { setFavourite } from "../lib/favorites";
 
 type ReorderResult = { ok: true; cart: MiniCartData; skipped: number } | { ok: false; message: string };
 
@@ -52,11 +51,6 @@ export async function reorderOrder(orderId: string): Promise<ReorderResult> {
 export async function reorderLines(lines: { variantId: string; quantity: number }[]): Promise<ReorderResult> {
   await requireSession();
   return addLines(lines);
-}
-
-export async function addOrderToFavourites(productIds: string[]): Promise<void> {
-  await setFavourite(productIds, "add");
-  revalidatePath("/account", "layout");
 }
 
 export async function updateAccountDetails(_prev: AccountFormState, formData: FormData): Promise<AccountFormState> {

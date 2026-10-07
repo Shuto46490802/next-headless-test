@@ -22,8 +22,6 @@ export interface SectionContext {
   siteLogo?: CmsImage | null;
   /** Query string, for rail tabs (?rail=handle) and article filters (?category=). */
   searchParams: Record<string, string | undefined>;
-  /** Fallback collection for a rail with no handle set. */
-  defaultCollectionHandle?: string;
 }
 
 /**
@@ -49,7 +47,7 @@ export async function Section({ section, ctx }: { section: PageSection; ctx: Sec
       return <ItemList {...toItemList(section, ctx.siteLogo)} />;
     case "productGrid": {
       const rail = toProductRailStatic(section);
-      const active = ctx.searchParams.rail ?? rail.shopifyHandle ?? rail.tabs[0]?.handle ?? ctx.defaultCollectionHandle;
+      const active = ctx.searchParams.rail ?? rail.shopifyHandle ?? rail.tabs[0]?.handle;
       // buyAgain / related / complementary need order or product context; the proof of concept
       // falls back to the storefront's product list so the band still renders.
       const buyer = await getBuyer();

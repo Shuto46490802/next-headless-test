@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { draftMode } from "next/headers";
 import { AgeGate, PreviewBanner, SiteFooter, SiteHeader } from "@repo/ui";
 import { brand } from "../../lib/brand";
-import { storefront } from "../../lib/shopify";
 import { getSession } from "../../lib/session";
 import { getCart } from "../../lib/cart";
 import { getPointsContext } from "../../lib/points";
@@ -16,7 +15,7 @@ import { confirmAge, declineAge } from "../age-gate-actions";
 export default async function SiteLayout({ children }: { children: ReactNode }) {
   const { isEnabled: isPreview } = await draftMode();
   const settings = await getSiteSettings(isPreview);
-  const [collections, session, cart, points] = await Promise.all([storefront.listCollections(8).catch(() => []), getSession(), getCart(), getPointsContext()]);
+  const [session, cart, points] = await Promise.all([getSession(), getCart(), getPointsContext()]);
 
   const isLoggedIn = Boolean(session);
   const ageGate = await getAgeGateState();
@@ -52,7 +51,6 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
         cartActions={{ updateQuantity: updateCartLineAction, remove: removeCartLineAction, togglePoints: toggleLinePaymentAction }}
         points={{ enabled: points.enabled, balance: points.balance }}
         balance={points.enabled && points.balance != null ? { label: "Points", value: points.balance.toLocaleString() } : null}
-        collections={collections.map((c) => ({ handle: c.handle, title: c.title }))}
       />
       <main className="flex-1">
         {isPreview ? <PreviewBanner exitHref="/api/preview/exit" /> : null}
