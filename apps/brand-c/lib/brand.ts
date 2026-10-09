@@ -12,3 +12,6 @@ export const brand: BrandConfig = {
  * membership is set to a different code are refused at login.
  */
 export const siteMembership: SiteMembership = "DC";
+
+/** Drinks Cart accounts are personal: sign-up approval lives on the customer. */
+export const accessMode = "customer" as const;

@@ -29,6 +29,7 @@ export const ACCOUNT_GROUPS: AccountNavGroup[] = [
       { href: "/account/details", label: "User details", icon: "user" },
       { href: "/account/club", label: `${ACCOUNT_COPY.org} details`, icon: "club" },
       { href: "/account/users", label: `${ACCOUNT_COPY.org} users`, icon: "users" },
+      ...(IS_CC ? [] : [{ href: "/account/addresses", label: "Locations", icon: "address" as const }]),
       ...(IS_CC ? [{ href: "/account/invite", label: "Invite a club", icon: "invite" as const }] : []),
     ],
   },

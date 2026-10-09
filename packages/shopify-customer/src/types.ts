@@ -157,3 +157,26 @@ export interface AccountOrderDetail extends Omit<AccountOrderRow, "number"> {
     image: { url: string; altText: string | null } | null;
   }[];
 }
+
+/** What the sign-up gate needs: statuses come from `custom.account_status`. */
+export interface AccessStatus {
+  customerStatus: string | null;
+  company: { id: string; status: string | null; locationId: string | null } | null;
+}
+
+export interface CompanyLocationAddress {
+  address1: string | null;
+  address2: string | null;
+  city: string | null;
+  zoneCode: string | null;
+  zip: string | null;
+  countryCode: string | null;
+  recipient?: string | null;
+}
+
+export interface CompanyLocations {
+  contactId: string;
+  companyId: string;
+  companyName: string;
+  locations: { id: string; name: string; shippingAddress: CompanyLocationAddress | null; billingAddress: CompanyLocationAddress | null }[];
+}

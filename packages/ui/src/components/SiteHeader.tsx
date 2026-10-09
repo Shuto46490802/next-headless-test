@@ -40,6 +40,8 @@ export interface SiteHeaderProps {
   accountMenu?: AccountMenuProps | null;
   /** Mini cart presentation: credit lines, delivery label, empty copy, "Have you forgotten" tray. */
   cartOptions?: { showCredit?: boolean; deliveryLabel?: string; emptyMessage?: string; upsell?: MiniCartUpsell | null };
+  /** Logo and log out only, for customers who haven't been approved yet. */
+  minimal?: boolean;
   /** Partner Connect delivery state picker (header chip + popover / mobile sheet). */
   locationPicker?: StatePickerProps | null;
   /** Header chip: "Club Credit $1,284.00" (CC/PC) or points (DC). Data, not CMS. */
@@ -65,6 +67,21 @@ function Logo({ brand, logo }: { brand: BrandConfig; logo?: CmsImage | null }) {
  */
 export function SiteHeader(p: SiteHeaderProps) {
   const cmsNav = p.navigation && p.navigation.length > 0 ? p.navigation : null;
+
+  // Signed in but not approved yet (sign-up form or "reviewing your request"): logo and log out only,
+  // no search, prices, cart or navigation.
+  if (p.isLoggedIn && p.minimal) {
+    return (
+      <header className="sticky top-0 z-40 bg-white shadow-sm">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-6 px-4 py-3 sm:px-8">
+          <Logo brand={p.brand} logo={p.logo} />
+          <form action="/api/auth/logout" method="POST">
+            <button type="submit" className="text-sm font-medium text-brand underline-offset-4 hover:underline">Log out</button>
+          </form>
+        </div>
+      </header>
+    );
+  }
 
   if (!p.isLoggedIn) {
     return (

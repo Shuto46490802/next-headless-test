@@ -17,6 +17,10 @@ export async function GET(request: NextRequest) {
   }
 
   const session = await getSession();
+  // Not approved yet: no checkout. The cart can't normally get here, but the route is public.
+  if (session?.access && session.access.state !== "approved") {
+    return NextResponse.redirect(new URL("/pending", request.nextUrl.origin), 303);
+  }
   let target = cart;
   if (session) {
     try {

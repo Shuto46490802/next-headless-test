@@ -4,7 +4,7 @@ import {
   extractShopId,
   type CustomerAccountOAuthConfig,
 } from "@repo/shopify-customer";
-import { createCustomerDataStore } from "@repo/customer-data";
+import { createCustomerDataStore, createSignupAdmin, hasAdminCredentials } from "@repo/customer-data";
 import { siteMembership } from "./brand";
 
 const storeDomain = process.env.SHOPIFY_STORE_DOMAIN as string;
@@ -46,5 +46,10 @@ export const customerData = createCustomerDataStore({
   adminClientId: adminCredentials.clientId,
   adminClientSecret: adminCredentials.clientSecret,
 });
+
+/** Sign-up writes (save the form, set the account status). Null without Admin credentials. */
+export const signupAdmin = hasAdminCredentials(adminCredentials)
+  ? createSignupAdmin({ storeDomain, apiVersion: adminApiVersion, ...adminCredentials })
+  : null;
 
 export const SITE_MEMBERSHIP = siteMembership;

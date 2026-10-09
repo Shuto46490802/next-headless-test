@@ -1,9 +1,41 @@
 import { revalidatePath } from "next/cache";
-import { FormField, FieldGroup, Button, EmptyState } from "@repo/ui";
+import { FormField, FieldGroup, Button, EmptyState, LocationsManager } from "@repo/ui";
 import { getValidAccessToken, requireSession } from "../../../../lib/session";
-import { customerAccount } from "../../../../lib/shopify";
+import { customerAccount, locationAdmin } from "../../../../lib/shopify";
+import { siteMembership } from "../../../../lib/brand";
+import { createLocationAction, updateLocationAction } from "../../../location-actions-admin";
 
+/**
+ * Partner Connect: a company has no address book, so this page manages its locations (delivery
+ * sites) instead, and adding an address creates a location. Club Connect keeps the personal
+ * address book for now.
+ */
 export default async function AddressesPage() {
+  return siteMembership === "PC" ? <LocationsPage /> : <AddressBookPage />;
+}
+
+async function LocationsPage() {
+  const session = await requireSession();
+  const token = await getValidAccessToken(session);
+  const [company, roles] = await Promise.all([customerAccount.getCompanyLocations(token), customerAccount.getCompanyAccess(token)]);
+  if (!company) return <EmptyState title="No business linked" description="Your account isn't linked to a business yet." />;
+  const adminAt = new Set(roles.filter((r) => r.isAdmin).map((r) => r.locationId));
+  return (
+    <LocationsManager
+      title="Locations"
+      intro={`Each location is a delivery site for ${company.companyName}, with its own address and ordering access.`}
+      locations={company.locations.map((l) => ({
+        ...l,
+        current: l.id === session.companyLocationId,
+        canEdit: Boolean(locationAdmin) && adminAt.has(l.id),
+      }))}
+      canAdd={Boolean(locationAdmin) && adminAt.size > 0}
+      actions={{ create: createLocationAction, update: updateLocationAction }}
+    />
+  );
+}
+
+async function AddressBookPage() {
   const session = await requireSession();
   const accessToken = await getValidAccessToken(session);
   const { addresses, defaultAddressId } = await customerAccount.listAddresses(accessToken);

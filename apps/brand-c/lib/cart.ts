@@ -70,6 +70,9 @@ export async function attachCustomerToCart(
  * errors (VALIDATION_CUSTOM) — propagate as CartMutationError so the caller can show them.
  */
 async function addLines(lines: CartLineInput[]): Promise<Cart> {
+  // Accounts waiting on sign-up approval can't order, even by calling the cart directly.
+  const session = await getSession();
+  if (session?.access && session.access.state !== "approved") throw new Error("Your account is awaiting approval.");
   const store = await cookies();
   const cartId = store.get(CART_COOKIE)?.value;
   const buyerIdentity = await currentBuyerIdentity();

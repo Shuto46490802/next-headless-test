@@ -24,6 +24,8 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
   const [session, cart] = await Promise.all([getSession(), getCart()]);
 
   const isLoggedIn = Boolean(session);
+  // Signed in but not approved yet (on /signup or /pending): slim header, no shopping chrome.
+  const awaitingApproval = Boolean(session?.access && session.access.state !== "approved");
   const [location, account, ageGate] = await Promise.all([
     STATE_PICKER_ENABLED && isLoggedIn ? getDeliveryLocation() : null,
     isLoggedIn ? getAccountOverview() : null,
@@ -53,6 +55,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
         brand={brand}
         logo={settings?.logo ?? null}
         isLoggedIn={isLoggedIn}
+        minimal={awaitingApproval}
         announcementMessages={settings?.announcementMessages}
         navigation={toNavigation(settings?.headerNavigation)}
         loggedOutNavigation={toLoggedOutNav(settings)}

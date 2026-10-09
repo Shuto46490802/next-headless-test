@@ -502,3 +502,69 @@ export const ACCOUNT_ORDER_DETAIL_QUERY = /* GraphQL */ `
     }
   }
 `;
+
+/** Sign-up gate: the customer's own status (Drinks Cart) and their company's status and location (CC/PC). */
+export const ACCESS_STATUS_QUERY = /* GraphQL */ `
+  query AccessStatus {
+    customer {
+      accountStatus: metafield(namespace: "custom", key: "account_status") {
+        value
+      }
+      companyContacts(first: 1) {
+        nodes {
+          company {
+            id
+            accountStatus: metafield(namespace: "custom", key: "account_status") {
+              value
+            }
+          }
+          locations(first: 1) {
+            nodes {
+              id
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+/** Partner locations page: every location of the customer's company with its addresses. */
+export const COMPANY_LOCATIONS_QUERY = /* GraphQL */ `
+  query CompanyLocations {
+    customer {
+      companyContacts(first: 1) {
+        nodes {
+          id
+          company {
+            id
+            name
+          }
+          locations(first: 50) {
+            nodes {
+              id
+              name
+              shippingAddress {
+                address1
+                address2
+                city
+                zoneCode
+                zip
+                countryCode
+                recipient
+              }
+              billingAddress {
+                address1
+                address2
+                city
+                zoneCode
+                zip
+                countryCode
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;

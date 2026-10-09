@@ -11,11 +11,15 @@ import {
   ORDER_DETAIL_QUERY,
   ORDERS_QUERY,
   ACCOUNT_OVERVIEW_QUERY,
+  ACCESS_STATUS_QUERY,
+  COMPANY_LOCATIONS_QUERY,
   ACCOUNT_ORDER_DETAIL_QUERY,
   LOCATION_ORDERS_QUERY,
   MY_ORDERS_QUERY,
 } from "./queries";
 import type {
+  AccessStatus,
+  CompanyLocations,
   AccountFulfillment,
   AccountOrderDetail,
   AccountOrderRow,
@@ -35,6 +39,7 @@ export * from "./types";
 export * from "./oauth";
 export * from "./session";
 export * from "./pkce";
+export * from "./access";
 export { CustomerAccountApiError } from "./client";
 
 interface UserError {
@@ -262,6 +267,32 @@ export function createShopifyCustomerAccount(config: CustomerAccountConfig) {
         }
       }
       return out;
+    },
+
+    /** The customer's company and all its locations; null when they don't belong to one. */
+    async getCompanyLocations(accessToken: string): Promise<CompanyLocations | null> {
+      const data = await client.request<{
+        customer: { companyContacts: { nodes: { id: string; company: { id: string; name: string } | null; locations: { nodes: CompanyLocations["locations"] } }[] } };
+      }>(accessToken, COMPANY_LOCATIONS_QUERY);
+      const c = data.customer.companyContacts.nodes[0];
+      if (!c?.company) return null;
+      return { contactId: c.id, companyId: c.company.id, companyName: c.company.name, locations: c.locations.nodes };
+    },
+
+    async getAccessStatus(accessToken: string): Promise<AccessStatus> {
+      const data = await client.request<{
+        customer: {
+          accountStatus: { value: string } | null;
+          companyContacts: { nodes: { company: { id: string; accountStatus: { value: string } | null } | null; locations: { nodes: { id: string }[] } }[] };
+        };
+      }>(accessToken, ACCESS_STATUS_QUERY);
+      const contact = data.customer.companyContacts.nodes[0];
+      return {
+        customerStatus: data.customer.accountStatus?.value ?? null,
+        company: contact?.company
+          ? { id: contact.company.id, status: contact.company.accountStatus?.value ?? null, locationId: contact.locations.nodes[0]?.id ?? null }
+          : null,
+      };
     },
 
     async getAccountOverview(accessToken: string): Promise<AccountOverview> {

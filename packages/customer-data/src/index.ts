@@ -23,6 +23,8 @@ export {
   type AdminApiConfig,
 } from "./admin";
 export { createMockDriver } from "./mock";
+export { createLocationAdmin, LocationError, type LocationAdmin } from "./locations";
+export { createSignupAdmin, SignupError, toE164, type SignupAdmin, type SignupAddress, type MetafieldWrite } from "./signup";
 export {
   createShoppingListStore,
   createAdminShoppingListStore,

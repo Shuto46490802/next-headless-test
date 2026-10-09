@@ -13,6 +13,7 @@ export * from "./cart-events";
 export * from "./components/MiniCart";
 export * from "./components/AgeGate";
 export * from "./account";
+export * from "./signup";
 export * from "./components/PreviewBanner";
 export * from "./cms";
 export * from "./components/SiteHeader";

@@ -10,7 +10,15 @@ export interface SessionPayload {
    * customer's first company contact). Undefined on D2C sites and for non-B2B customers.
    */
   companyLocationId?: string | null;
+  /**
+   * Sign-up gate, re-checked by the middleware (often while not approved, rarely once approved).
+   * `signup` = no company (CC/PC) or form not finished (DC); `pending` / `rejected` = waiting on
+   * or declined by Asahi.
+   */
+  access?: { state: AccessState; checkedAt: number } | null;
 }
+
+export type AccessState = "signup" | "pending" | "rejected" | "approved";
 
 async function deriveKey(secret: string): Promise<Uint8Array> {
   const data = new TextEncoder().encode(secret);
@@ -27,6 +35,7 @@ export async function encryptSession(payload: SessionPayload, secret: string): P
     email: payload.email,
     tokens: payload.tokens,
     companyLocationId: payload.companyLocationId ?? null,
+    access: payload.access ?? null,
   })
     .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
     .setIssuedAt()

@@ -12,3 +12,6 @@ export const brand: BrandConfig = {
  * membership is set to a different code are refused at login.
  */
 export const siteMembership: SiteMembership = "CC";
+
+/** Sign-up approval lives on the company for Club Connect and Partner Connect. */
+export const accessMode = "company" as const;
